@@ -1,0 +1,503 @@
+<html>
+
+<head>
+<meta http-equiv="expires" content="Wed, 19 Feb 2003 08:00:00 GMT">
+</head>
+<body bgcolor="#FFFFFF" text="#000000" link="#000066" vlink="#333399" alink="#FF0000">
+<pre>
+
+This is the release of crash gcore command, version 1.6.1.
+
+This release includes the following 1 bug fix.
+
+ChangeLog:
+
+- Fix miscalculation of the starting address of the pt_regs structure
+  on the kernel stack on aarch64. Without fix for this issue, bt
+  command displays corrupt backtrace. This fix corresponds to the
+  commit c975008e61121ef8785622c3bc26964da8fe0deb in crash utility.
+  (zhaoqianli@xiaomi.com)
+
+MD5 CheckSum:
+
+    # md5sum crash-gcore-command-1.6.1.tar.gz
+    a466baa568eeb495edf8824432c4cde8  crash-gcore-command-1.6.1.tar.gz
+
+
+
+This is the release of crash gcore command, version 1.6.0.
+
+This release includes the following 1 new feature and 2 bug fixes.
+
+This is tested on the latest kernels on Fedora 33, RHEL8, RHEL7 and
+RHEL6 on x86_64.
+
+Note that ZRAM support is not included in this release because some
+patch set is still needed in crash utility.
+
+ChangeLog:
+
+- NT_FILE note information is newly supported for tasks in both 64-bit
+  and 32-bit compatible mode:
+    # LANG=C eu-readelf -n core.1.systemd | awk '/FILE$/ {f=1} f == 1 {print $0}' | head -n 10
+      CORE               12957  FILE
+        240 files:
+          564b290de000-564b29112000 00000000 212992      /usr/lib/systemd/systemd
+          564b29112000-564b291de000 00104000 835584      /usr/lib/systemd/systemd
+          564b291de000-564b2923d000 00500000 389120      /usr/lib/systemd/systemd
+          564b2923d000-564b29282000 006d6000 282624      /usr/lib/systemd/systemd
+          564b29282000-564b29283000 0082f000 4096        /usr/lib/systemd/systemd
+          7ffbf12c2000-7ffbf134c000 00000000 565248      /etc/selinux/targeted/contexts/files/file_contexts.bin
+          7ffbf1352000-7ffbf135a000 00000000 32768       /usr/lib64/libnl-3.so.200.26.0
+          7ffbf135a000-7ffbf1369000 00028000 61440       /usr/lib64/libnl-3.so.200.26.0
+  (thirtsa.dreyfus@intel.com, d.hatayama@fujitsu.com)
+
+- Fix failure of collecting vDSO mapping if compat vDSO is disabled
+  due to wrongly designed condition for compat tasks that tries to
+  determine vDSO mapping based on VDSO_HIGH_BASE. Without this patch,
+  vDSO mapping page is not collected for tasks running in 32-bit
+  compat mode and thus displaying backtrace by gdb's bt command for
+  the tasks could be incomplete.
+  (d.hatayama@fujitsu.com)
+
+- Fix failure of invalid structure member offset with the message
+  "gcore: invalid structure member offset:
+  thread_struct_io_bitmap_max" due to change of kernel data structure
+  for io bitmap by the commit <577d5cd7e585> ("x86/ioperm: Move
+  iobitmap data into a struct").
+  (lijiang@redhat.com, d.hatayama@fujitsu.com)
+
+MD5 CheckSum:
+
+    # md5sum crash-gcore-command-1.6.0.tar.gz
+    889843438ad702807d48cccfdee94e89  crash-gcore-command-1.6.0.tar.gz
+
+
+
+This is the release of crash gcore command, version 1.5.1.
+
+This release includes the following 2 bug fixes.
+
+ChangeLog:
+
+  - Fix the invalid structure member failure of
+    thread_struct_fpsimd_state caused by the commit
+    65896545b69ffaac947c12e11d3dcc57fd1fb772 merged at v4.17-rc2
+    ("arm64: uaccess: Fix omissions from usercopy whitelist") that
+    changed struct thread_struct. Without this fix, gcore command
+    fails with the following error message:
+
+        crash> gcore 2190
+
+          gcore: invalid structure member offset: thread_struct_fpsimd_state
+             FILE: libgcore/gcore_arm64.c  LINE: 46  FUNCTION: fpr_get()
+
+          [./crash] error trace: ffff81c44c8c => ffff81c48fb8 => 51afd8 => 51af50
+
+        51af50: OFFSET_verify.part.28+72
+        51afd8: store_module_kallsyms_v2.part.29+0
+
+          gcore: invalid structure member offset: thread_struct_fpsimd_state
+             FILE: libgcore/gcore_arm64.c  LINE: 46  FUNCTION: fpr_get()
+
+          Failed.
+
+    (anderson@redhat.com)
+
+  - Fix the invalid structure size failure of pid_link on v4.19 and
+    newer kernel introduced by the commit 2c4704756cab ("pids: Move
+    the pgrp and session pid pointers from task_struct to
+    signal_struct") that removed struct pid_link array from
+    task_struct and added struct pid array into signal_struct. Without
+    this fix, gcore command fails with the following error message:
+
+        gcore: invalid structure size: pid_link
+               FILE: libgcore/gcore_coredump_table.c  LINE: 423  FUNCTION: pid_alive()
+
+        [./crash] error trace: 7f4a7a6762b8 => 7f4a7a676e0f => 53b391 => 53b316
+
+          53b316: SIZE_verify.part.31+70
+          53b391: SIZE_verify+49
+
+        gcore: invalid structure size: pid_link
+               FILE: libgcore/gcore_coredump_table.c  LINE: 423  FUNCTION: pid_alive()
+
+        Failed.
+
+    (m.mizuma@jp.fujitsu.com)
+
+MD5 CheckSum:
+
+  # md5sum crash-gcore-command-1.5.1.tar.gz
+  255c9bab30f3cac68b30676ce295245a  crash-gcore-command-1.5.1.tar.gz
+
+
+
+This is the release of crash gcore command, version 1.5.0.
+
+The aim of this release is mainly to support v4.18 and newer kernels.
+
+ChangeLog:
+
+  - Fix the issue that special vmas such as vdso and vsyscall are not
+    saved in a produced core file due to the commit
+    78d683e838a60ec4ba4591cca4364cba84a9e626 titled "mm, fs: Add
+    vm_ops->name as an alternative to arch_vma_name" and merged at
+    v3.15-rc5, which replaced the way of naming special vma such as
+    vdso and vsyscall.
+
+  - Fix the issue that no NT_PRFPREG is collected due to repeated
+    changes on the x86 FPU code in the upstream kernel. Note that
+    although the issue that no NT_PRFPREG is collected is (probably
+    temporarily) fixed, its content would be useless in most cases
+    since the FPU registers to be saved in NT_PRFPREG are now read
+    dynamically when a core file is created.
+
+  - Change the logic of restoring general-purpose registers at
+    interrupt contexts according to the commit
+    ff467594f2a4be01a0fa5e9ffc223fa930d232dd titled "x86/asm/entry/64:
+    Save all regs on interrupt entry" and merged at v4.2-rc2 where all
+    the registers including callee-saved registers are saved on
+    interrupt entry. Thus, we don't have to try to restore
+    callee-saved registers in the function frames. I'm very happy.
+
+  - Address the change of vsyscall logic that vsyscall page is not
+    mapped in user-space if vsyscall=none is configured in the kernel
+    command-line parameters by the commit
+    87983c66bc02c9cd8e4a42e7924435145d52bb13 titled "x86_64, vsyscall:
+    Turn vsyscalls all the way off when vsyscall==none" and merged at
+    v3.18-rc3.
+
+  - Fix NULL pointer dereference caused by the removal of old_rsp
+    symbol by the commit 9854dd74c3f6af8d9d527de86c6074b7ed0495f1
+    titled "x86: fix NULL pointer dereference caused by the removal of
+    old_rsp" and merged at v4.0-rc3. But the commit simplifies how to
+    save old_rsp and now it is saved in the bottom of kernel stack as
+    part of a pt_regs structure object. Hence this also simplifies
+    gcore's register restoration logic.
+
+
+
+This is the release of crash gcore command, version 1.4.0.
+
+ChangeLog:
+
+ - Add MIPS support.
+   (rabinv@axis.com)
+
+
+
+This is the release of crash gcore command, version 1.3.2.
+
+This release includes a fix for the issue reported by Eric Ewanco and
+some bugfixes found on 4.8 kernel.
+
+ChangeLog:
+
+ - Fix a Segmentation fault issue caused by NULL pointer dereference
+   due to a renaming of symbol old_rsp to rsp_scratch at the commit
+   ac9af4983e77765a642b5a21086bc1fdc55418c4, triggered by the commit
+   263042e4630a85e856b4a8cd72f28dab33ef4741 that changes a saving
+   location of user stack pointer in syscall path from
+   thread_struct::usersp to pt_regs at the bottom of kernel stack.
+   (Eric.Ewanco@genband.com, d.hatayama@jp.fujitsu.com)
+
+ - Fix a runtime error with an error message "invalid structure member
+   offset: thread_struct_fs" due to a renaming of fs/gs members of
+   thread_struct on x86 to fsbase/gsbase. Without this fix, gcore
+   exits abnormally without producing any core file on this issue.
+   (d.hatayama@jp.fujitsu.com)
+
+ - Fix a Segmentation fault issue caused by NULL pointer dereference
+   due to buffer overrun during a copy of floating pointer register
+   values onto a buffer allocated on the stack where detected size of
+   the copied floating register values are too large, larger than
+   prepared buffer size.  This fix makes the copying floating pointer
+   register values more fail safe to make sure at least that such
+   detection of wrong data structure size doesn't make gcore process
+   abnormally terminate.
+   (d.hatayama@jp.fujitsu.com)
+
+
+
+This is the release of crash gcore command, version 1.3.1.
+
+This release only aims at fixing building failure on x86 I overlooked
+at the release of version 1.3.0.
+
+ChangeLog:
+
+[bugfixes]
+
+ - Fix building failure on x86 caused by a static reference to type
+   struct user_i387_struct that is used on x86_64 only. This reference
+   was introduced at v1.3.0 by the bugfix of segfault issue due to a
+   buffer overwrite of NT_FPREGSET. Correct one on x86 is struct
+   user_i387_ia32_struct, and we use it now.
+   (d.hatayama@jp.fujitsu.com)
+
+
+
+This is the release of crash gcore command, version 1.3.0.
+
+This release newly adds ARM64 and PPC64 supports, thanks to respective
+maintainers for their development of patch sets and verifications at
+each rc release.
+
+The remaining changes are all bugfixes.
+
+# The ChangeLog includes those that appeared at each rc release.
+
+ChangeLog:
+
+[new features]
+
+ - Add ARM64 support. In addition to native ARM64 build, like crash
+   utility, we can build x86_64 executable of crash gcore command for
+   ARM64 crash dump by make target=ARM64, just like crash utility.
+   (anderson@redhat.com)
+
+ - Add ARM64 compat mode support. This allows gcore to create
+   corefiles for tasks running in 32-bit compatible mode on ARM64.
+   (weishu@marvell.com)
+
+ - Add PPC64 support. This includes both big-endian and little-endian
+   formats.
+   (mtoman@redhat.com, anderson@redhat.com)
+
+[bugfixes]
+
+ - Correct a read buffer size for NT_FPREGSET as sizeof(struct
+   user_i387_struct). So far we had used sizeof(union thread_xstate)
+   falsely as a read buffer size but it had accidentally been equal to
+   sizeof(struct user_i387_struct). However, the following patch
+   extended union thread_xstate and sizeof(union thread_xstate) became
+   larger than sizeof(struct user_i387_struct):
+
+    commit e7d820a5e549b3eb6c3f9467507566565646a669
+    Author: Qiaowei Ren &lt;qiaowei.ren@intel.com>
+    Date:   Thu Dec 5 17:15:34 2013 +0800
+
+        x86, xsave: Support eager-only xsave features, add MPX support
+
+        Some features, like Intel MPX, work only if the kernel uses eagerfpu
+        model.  So we should force eagerfpu on unless the user has explicitly
+        disabled it.
+
+        Add definitions for Intel MPX and add it to the supported list.
+
+        [ hpa: renamed XSTATE_FLEXIBLE to XSTATE_LAZY and added comments ]
+
+        Signed-off-by: Qiaowei Ren &ltqiaowei.ren@intel com>
+        Link: http://lkml.kernel.org/r/9E0BE1322F2F2246BD820DA9FC397ADE014A6115.SHSMSX102.ccr.corp.intel.com
+        Signed-off-by: H. Peter Anvin &lt;hpa@linux.intel.com>
+
+   Without this patch, for vmcores whose kernel versions are v3.14 or
+   later, gcore results in segmentation fault due to a buffer overrite
+   of NT_FPREGSET.
+   (d.hatayama@jp.fujitsu.com)
+
+ - Although ELF_DATA is defined in gcore_defs.h, ELFDATA2LSB is used
+   directly at elf{64,32}_fill_elf_header(). There's so far been no
+   problem since the exisitng supported architectures are all
+   little-endian systems. Fix this to support PPC64 that uses
+   little-endian format.
+   (anderson@redhat.com)
+
+ - Fix a bug that registers in NT_PRSTATUS note information is
+   broken. This had been since v1.2.2 when O(1) note informaiton
+   collection was added. Without this fix, we can never get reliable
+   register values for failure analysis.
+   (weishu@marvell.com)
+
+ - Fix a bug that NT_386_IOPERM note information is not collected. So
+   far, ioperm_get() had always returned 1. As a result, NT_386_IOPERM
+   note information had never been not included in a generated core
+   file even if it is available for a given task on a given crash
+   dump.
+   (d.hatayama@jp.fujitsu.com)
+
+ - Add new member offset initialization for struct
+   nsproxy::pid_ns_for_children. In upstream, the following patch
+   renamed struct nsproxy::pid_ns into struct
+   nsproxy::pid_ns_for_children.
+
+    $ git log -1 c2b1df2e
+    commit c2b1df2eb42978073ec27c99cc199d20ae48b849
+    Author: Andy Lutomirski &lt;luto@amacapital.net>
+    Date:   Thu Aug 22 11:39:16 2013 -0700
+
+        Rename nsproxy.pid_ns to nsproxy.pid_ns_for_children
+
+        nsproxy.pid_ns is *not* the task's pid namespace. The name
+        should clarify that.
+
+        This makes it more obvious that setns on a pid namespace is weird --
+        it won't change the pid namespace shown in procfs.
+
+        Signed-off-by: Andy Lutomirski &lt;luto@amacapital.net>
+        Reviewed-by: "Eric W. Biederman" &lt;ebiederm@xmission.com>
+        Signed-off-by: David S. Miller &lt;davem@davemloft.net>
+
+   Without this fix, gcore exited abnormally at its initialization
+   part and so core file is never generated.
+   (d.hatayama@jp.fujitsu.com)
+
+ - Fix a bug that a wrong way of checking return value of
+   fopen(). fopen() returns NULL in case of error, but gcore had seen
+   it as returning a minus integer. As a result, gcore continues
+   execution after the check even in case of error and then exits
+   abnormally at the first call of fwrite() with the broken file
+   pointer gcore failed to open.
+
+   From users' viewpoint, we face this bug when trying to overwrite an
+   existing corefile with more priviledged permission and resulting in
+   EPERM failure.
+   (d.hatayama@jp.fujitsu.com)
+
+
+
+This is the release of crash gcore command, version 1.2.2.
+
+ChangeLog:
+
+ - Now gcore collects and writes ELF note segments in O(1) memory
+   consumption with regard to the number of threads. The implementation
+   so far had created ELF note segments for all the threads as a list
+   at the same time, and so memory consumption had grown in proportion
+   to the number of threads. In contrast, new implementation writes
+   ELF note segments one by one. Without this change, gcore could fail
+   abnormally if specified process consists of threads more than tens of
+   thousands, with the message: "gcore: cannot allocate any more memory!".
+   (d.hatayama@jp.fujitsu.com)
+
+ - Fix the address of vdso virtual address in x86_64 compat mode by using
+   fixed VDSO_HIGH_BASE, not by vma->vm_mm->context.vdso. Without this
+   fix, access to vdso page fails in x86_64 compat mode and vdso page
+   fails to be collected in generated process core dump.
+   (d.hatayama@jp.fujitsu.com)
+
+ - Tested on RHEL5.10.
+   (d.hatayama@jp.fujitsu.com)
+
+
+This is the release of crash gcore command, version 1.2.1.
+
+ChangeLog:
+
+ - Fix failure of coredump at accessing memory for VSYSCALL page due
+   to wrong conversion of uvtop which wrongly treats address
+   VSYSCALL_START as belongs to kernel direct mapping region. This fix
+   executes uvtop in verbose mode to make it always paging and
+   retrieves the correct physical address from its output. Without
+   this fix, VSYSCALL page fails to be collected and core dump process
+   is aborted; though VSYSCALL page is done in the last so allmost all
+   corefile is already generated.
+   (d.hatayama@jp.fujitsu.com)
+
+ - Skip page-faulted pages by lseek() rather than writing zero-filled
+   pages. By this, generated core file has holes in the corresponding
+   positions for each page-faulted pages if filesystem supports sparse
+   files. This is highly useful when the target process has huge
+   virtual memory space such as qemu process that has huge physical
+   memory of KVM guest machine.
+   (d.hatayama@jp.fujitsu.com)
+
+ - Fix the bug that filter for hugepage shared/private memory can
+   depend on flags other than HP or HS flags. This was introduced at
+   the introduction of VM_DONTDUMP where VM_RESERVED flag was
+   removed. At the time, there was a check to see if VM_REESRVED flag
+   was set after a check to see if VM_HUGETLB. But the latter check
+   was not changed when the former check was removed.
+   (d.hatayama@jp.fujitsu.com)
+
+
+This is the release of crash gcore command, version 1.2.0.
+
+ChangeLog:
+
+ - Add new dump filter level for memory advised with MADV_DONTDUMP.
+   By specifying this new dump level, gcore generates core dump
+   including the ranges with VM_DONTDUMP flag. The new dump level is
+   not specified at default. See help gcore, in particular, part of -f
+   option forcusing on DD.
+
+ - Deal with anonymous i_nlink member of inode, caused by the kernel's
+   commit a78ef704a8dd430225955f0709b22d4a6ba21deb. Without this
+   patch, gcore fails and no core file is generated on the kernels of
+   the commit or later.
+   (per.fransson.ml@gmail.com)
+
+ - Deal with removal of VM_ALWAYDUMP flag, caused by the kernel's
+   commit 909af768e88867016f427264ae39d27a57b6a8ed. Without this
+   change, vdso or vsyscall page is not included in core file on the
+   kernels of the commit or later.
+
+ - Deal with introduction of VM_DONTDUMP flag, on the kernel's commit
+   a0f5202d695d492221dd946aafbfb3d993f6cbe0. Without this patch,
+   VM_DONTDUMP flag is wrongly regarded as VM_ALWAYSFLAG flag, and the
+   corresponding memory is intensinally included in a generated core
+   dump.
+
+ - Deal with removal of VM_RESERVED flag, caused by the kernel's
+   commit e4bffd16e615edfa42aa4f37224c3a26c6ef2436. Without this
+   patch, gcore checks VM_RESERVED flag even if it is no longer
+   present on given kernel.
+
+Supported Kernels:
+
+ * Upstream Kernels
+
+   version  | x86  |x86_64| ARM
+ -----------+------+------+-----
+   2.6.35.7 |  --  |  --  | OK
+   2.6.36   |  OK  |  OK  | --
+   3.0.8    |  --  |  --  | OK
+   3.6.0    |  --  |  OK  | --   (new)
+   3.7-rc5  |  --  |  OK  | --   (new)
+
+ OK : Support
+ -- : Not support
+
+ * RHEL Kernels (#1
+
+          | x86  |     x86_64
+  version |      | 64 bit ; 32 bit
+ ---------+------+--------+---------
+    4.8   |  OK  |   OK   |   --
+ ---------+------+--------+---------
+    5.5   |  OK  |   OK   |   OK
+    5.6   |  --  |   OK   |   OK
+    5.7   |  --  |   OK   |   OK
+    5.8   |  --  |   OK   |   OK
+ ---------+------+--------+---------
+    6.0   |  OK  |   OK   |   OK
+    6.1   |  --  |   OK   |   OK
+    6.2   |  --  |   OK   |   OK
+    6.3   |  --  |   OK   |   OK      (new)
+
+  #1) RHEL4 is based on 2.6.9 kernel,
+      RHEL5 is based on 2.6.18 kernel and
+      RHEL6 is based on 2.6.32 kernel.
+
+Todo:
+
+ - Support for nested NMI handling on X86
+
+Note:
+
+ 1) The versions signed OK are the ones I did verification. gcore
+ might work well on kernel versions near the supported ones.
+
+ 2) The reason why I separate table for RHEL series and table for
+ upstream series is that RHEL kernels are being made based on upstream
+ kernels _plus a variety of additional patches_. So, rigorously, they
+ must be thought of as differnet kernels. However, just as 1), it
+ would be likely that gcore works well on vmcores for upstream kernels
+ near the corresponding RHEL versions.
+
+Thanks.
+HATAYAMA Daisuke
+
+</pre>
+</html>

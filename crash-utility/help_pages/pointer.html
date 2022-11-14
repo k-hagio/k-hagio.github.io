@@ -1,0 +1,76 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+<head>
+
+<!-- MAIN BODY TABLE is nested for scalability -->
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                        <td colspan="3"><hr class="gray" noshade="noshade" /></td>
+                                </tr>
+                                <tr>
+                                        <td colspan="3"><img src="/img/pixel.gif" width="1" height="10" border="0" alt="" /></td>
+                                </tr>
+                        </table>
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                        <td width="100%">
+<!--CONTENT begins here-->
+<h3>crash utility help page: <tt><b>&nbsp;*</b></tt></a></h3>
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre> 
+NAME
+  * - pointer-to short-cut
+
+SYNOPSIS
+  * (struct or union command arguments)
+
+DESCRIPTION
+  This command is a short-cut command that replaces the requirement to enter
+  "struct" or "union" command names.  For details on the arguments to
+  those commands, enter "help struct" or "help union".
+
+EXAMPLES
+  Dump the page structure at address c02943c0:
+ 
+    crash&gt; *page c02943c0
+    struct page {
+      next = 0xc0fae740, 
+      prev = 0xc0018fb0, 
+      inode = 0x0, 
+      offset = 0x3f000, 
+      next_hash = 0xc02d6310, 
+      count = {
+        counter = 0x1
+      }, 
+      flags = 0x310, 
+      wait = 0xc02943d8, 
+      pprev_hash = 0x0, 
+      buffers = 0x0
+    }
+
+</pre>
+</td>
+</tr>
+</table>
+<!--CONTENT ends here-->
+                                        </td>
+                                </tr>
+                        </table>
+                        <hr class="gray" noshade="noshade" />
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                        <td colspan="3"><img src="/img/pixel.gif" width="1" height="10" border="0" alt="" /></td>
+                                </tr>
+                                <tr>
+                                        <td colspan="3"><img src="/img/pixel.gif" width="1" height="30" border="0" alt="" /></td>
+                                </tr>
+                        </table>
+                </td>
+
+</table>
+</body>
+</html>

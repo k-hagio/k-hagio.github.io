@@ -1,0 +1,280 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+<head>
+
+<meta http-equiv="cache-control" content="max-age=0" />
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="expires" content="0" />
+<meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT" />
+<meta http-equiv="pragma" content="no-cache" />
+
+<!-- MAIN BODY TABLE is nested for scalability -->
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                        <td colspan="3"><hr class="gray" noshade="noshade" /></td>
+                                </tr>
+                                <tr>
+                                        <td colspan="3"><img src="/img/pixel.gif" width="1" height="10" border="0" alt="" /></td>
+                                </tr>
+                        </table>
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                        <td width="100%">
+<!--CONTENT begins here-->
+<h3>crash utility help page: <tt><b>&nbsp;dis</b></tt></a></h3>
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre>
+
+NAME
+  dis - disassemble
+
+SYNOPSIS
+  dis [-rfludxs][-b [num]] [address | symbol | (expression)] [count]
+
+DESCRIPTION
+  This command disassembles source code instructions starting (or ending) at
+  a text address that may be expressed by value, symbol or expression:
+
+            -r  (reverse) displays all instructions from the start of the 
+                routine up to and including the designated address.
+            -f  (forward) displays all instructions from the given address 
+                to the end of the routine.
+            -l  displays source code line number data in addition to the 
+                disassembly output.
+            -u  address is a user virtual address in the current context;
+                otherwise the address is assumed to be a kernel virtual address.
+                If this option is used, then -r and -l are ignored.
+            -x  override default output format with hexadecimal format.
+            -d  override default output format with decimal format.
+            -s  displays the filename and line number of the source code that
+                is associated with the specified text location, followed by a
+                source code listing if it is available on the host machine.
+                The line associated with the text location will be marked with
+                an asterisk; depending upon gdb's internal "listsize" variable,
+                several lines will precede the marked location. If a "count"
+                argument is entered, it specifies the number of source code
+                lines to be displayed after the marked location; otherwise
+                the remaining source code of the containing function will be
+                displayed.
+      -b [num]  modify the pre-calculated number of encoded bytes to skip after
+                a kernel BUG ("ud2a") instruction; with no argument, displays
+                the current number of bytes being skipped. (x86 and x86_64 only)
+       address  starting hexadecimal text address.
+        symbol  symbol of starting text address.  On ppc64, the symbol
+                preceded by '.' is used.
+  (expression)  expression evaluating to a starting text address.
+         count  the number of instructions to be disassembled (default is 1).
+                If no count argument is entered, and the starting address
+                is entered as a text symbol, then the whole routine will be
+                disassembled.  The count argument is supported when used with
+                the -r and -f options.
+
+EXAMPLES
+  Disassemble the sys_signal() routine without, and then with, line numbers:
+
+    crash&gt; dis sys_signal
+    0xc0112c88 &lt;sys_signal&gt;:        push   %ebp
+    0xc0112c89 &lt;sys_signal+1&gt;:      mov    %esp,%ebp
+    0xc0112c8b &lt;sys_signal+3&gt;:      sub    $0x28,%esp
+    0xc0112c8e &lt;sys_signal+6&gt;:      mov    0xc(%ebp),%eax
+    0xc0112c91 &lt;sys_signal+9&gt;:      mov    %eax,0xffffffec(%ebp)
+    0xc0112c94 &lt;sys_signal+12&gt;:     movl   $0xc0000000,0xfffffff0(%ebp)
+    0xc0112c9b &lt;sys_signal+19&gt;:     lea    0xffffffd8(%ebp),%eax
+    0xc0112c9e &lt;sys_signal+22&gt;:     push   %eax
+    0xc0112c9f &lt;sys_signal+23&gt;:     lea    0xffffffec(%ebp),%eax
+    0xc0112ca2 &lt;sys_signal+26&gt;:     push   %eax
+    0xc0112ca3 &lt;sys_signal+27&gt;:     pushl  0x8(%ebp)
+    0xc0112ca6 &lt;sys_signal+30&gt;:     call   0xc01124b8 &lt;do_sigaction&gt;
+    0xc0112cab &lt;sys_signal+35&gt;:     test   %eax,%eax
+    0xc0112cad &lt;sys_signal+37&gt;:     jne    0xc0112cb2 &lt;sys_signal+42&gt;
+    0xc0112caf &lt;sys_signal+39&gt;:     mov    0xffffffd8(%ebp),%eax
+    0xc0112cb2 &lt;sys_signal+42&gt;:     leave
+    0xc0112cb3 &lt;sys_signal+43&gt;:     ret
+ 
+    crash&gt; dis -l sys_signal
+    /usr/src/linux-2.2.5/kernel/signal.c: 1074
+    0xc0112c88 &lt;sys_signal&gt;:        push   %ebp
+    0xc0112c89 &lt;sys_signal+1&gt;:      mov    %esp,%ebp
+    0xc0112c8b &lt;sys_signal+3&gt;:      sub    $0x28,%esp
+    0xc0112c8e &lt;sys_signal+6&gt;:      mov    0xc(%ebp),%eax
+    /usr/src/linux-2.2.5/kernel/signal.c: 1078
+    0xc0112c91 &lt;sys_signal+9&gt;:      mov    %eax,0xffffffec(%ebp)
+    /usr/src/linux-2.2.5/kernel/signal.c: 1079
+    0xc0112c94 &lt;sys_signal+12&gt;:     movl   $0xc0000000,0xfffffff0(%ebp)
+    /usr/src/linux-2.2.5/kernel/signal.c: 1081
+    0xc0112c9b &lt;sys_signal+19&gt;:     lea    0xffffffd8(%ebp),%eax
+    0xc0112c9e &lt;sys_signal+22&gt;:     push   %eax
+    0xc0112c9f &lt;sys_signal+23&gt;:     lea    0xffffffec(%ebp),%eax
+    0xc0112ca2 &lt;sys_signal+26&gt;:     push   %eax
+    0xc0112ca3 &lt;sys_signal+27&gt;:     pushl  0x8(%ebp)
+    0xc0112ca6 &lt;sys_signal+30&gt;:     call   0xc01124b8 &lt;do_sigaction&gt;
+    /usr/src/linux-2.2.5/kernel/signal.c: 1083
+    0xc0112cab &lt;sys_signal+35&gt;:     test   %eax,%eax
+    0xc0112cad &lt;sys_signal+37&gt;:     jne    0xc0112cb2 &lt;sys_signal+42&gt;
+    0xc0112caf &lt;sys_signal+39&gt;:     mov    0xffffffd8(%ebp),%eax
+    /usr/src/linux-2.2.5/kernel/signal.c: 1084
+    0xc0112cb2 &lt;sys_signal+42&gt;:     leave
+    0xc0112cb3 &lt;sys_signal+43&gt;:     ret
+ 
+  Given a return address expression of "do_no_page+65", find out the 
+  function that do_no_page() calls by using the reverse flag:
+
+    crash&gt; dis -r (do_no_page+65)
+    0xc011ea68 &lt;do_no_page&gt;:        push   %ebp
+    0xc011ea69 &lt;do_no_page+1&gt;:      mov    %esp,%ebp
+    0xc011ea6b &lt;do_no_page+3&gt;:      push   %edi
+    0xc011ea6c &lt;do_no_page+4&gt;:      push   %esi
+    0xc011ea6d &lt;do_no_page+5&gt;:      push   %ebx
+    0xc011ea6e &lt;do_no_page+6&gt;:      mov    0xc(%ebp),%ebx
+    0xc011ea71 &lt;do_no_page+9&gt;:      mov    0x10(%ebp),%edx
+    0xc011ea74 &lt;do_no_page+12&gt;:     mov    0x14(%ebp),%edi
+    0xc011ea77 &lt;do_no_page+15&gt;:     mov    0x28(%ebx),%eax
+    0xc011ea7a &lt;do_no_page+18&gt;:     test   %eax,%eax
+    0xc011ea7c &lt;do_no_page+20&gt;:     je     0xc011ea85 &lt;do_no_page+29&gt;
+    0xc011ea7e &lt;do_no_page+22&gt;:     mov    0x18(%eax),%ecx
+    0xc011ea81 &lt;do_no_page+25&gt;:     test   %ecx,%ecx
+    0xc011ea83 &lt;do_no_page+27&gt;:     jne    0xc011eab0 &lt;do_no_page+72&gt;
+    0xc011ea85 &lt;do_no_page+29&gt;:     mov    $0xffffe000,%eax
+    0xc011ea8a &lt;do_no_page+34&gt;:     and    %esp,%eax
+    0xc011ea8c &lt;do_no_page+36&gt;:     decl   0x30(%eax)
+    0xc011ea8f &lt;do_no_page+39&gt;:     jns    0xc011ea9a &lt;do_no_page+50&gt;
+    0xc011ea91 &lt;do_no_page+41&gt;:     lock btrl $0x0,0xc022fb60
+    0xc011ea9a &lt;do_no_page+50&gt;:     push   %edi
+    0xc011ea9b &lt;do_no_page+51&gt;:     mov    0x18(%ebp),%esi
+    0xc011ea9e &lt;do_no_page+54&gt;:     push   %esi
+    0xc011ea9f &lt;do_no_page+55&gt;:     push   %ebx
+    0xc011eaa0 &lt;do_no_page+56&gt;:     mov    0x8(%ebp),%esi
+    0xc011eaa3 &lt;do_no_page+59&gt;:     push   %esi
+    0xc011eaa4 &lt;do_no_page+60&gt;:     call   0xc011e9e4 &lt;do_anonymous_page&gt;
+    0xc011eaa9 &lt;do_no_page+65&gt;:     jmp    0xc011eb47 &lt;do_no_page+223&gt;
+    
+  Disassemble 10 instructions starting at user virtual address 0x81ec624:
+
+    crash&gt; dis -u 81ec624 10
+    0x81ec624:      push   %ebp
+    0x81ec625:      mov    %esp,%ebp
+    0x81ec627:      sub    $0x18,%esp
+    0x81ec62a:      movl   $0x1,0x8(%ebp)
+    0x81ec631:      mov    0x82f9040,%eax
+    0x81ec636:      mov    0x10(%eax),%edx
+    0x81ec639:      and    $0x100,%edx
+    0x81ec63f:      mov    0x14(%eax),%ecx
+    0x81ec642:      and    $0x0,%ecx
+    0x81ec645:      mov    %ecx,%eax
+ 
+  Override the current decimal output radix format:
+
+    crash&gt; dis sys_read 10 -x
+    0xffffffff8001178f &lt;sys_read&gt;:  push   %r13
+    0xffffffff80011791 &lt;sys_read+0x2&gt;:    mov    %rsi,%r13
+    0xffffffff80011794 &lt;sys_read+0x5&gt;:    push   %r12
+    0xffffffff80011796 &lt;sys_read+0x7&gt;:    mov    $0xfffffffffffffff7,%r12
+    0xffffffff8001179d &lt;sys_read+0xe&gt;:    push   %rbp
+    0xffffffff8001179e &lt;sys_read+0xf&gt;:    mov    %rdx,%rbp
+    0xffffffff800117a1 &lt;sys_read+0x12&gt;:   push   %rbx
+    0xffffffff800117a2 &lt;sys_read+0x13&gt;:   sub    $0x18,%rsp
+    0xffffffff800117a6 &lt;sys_read+0x17&gt;:   lea    0x14(%rsp),%rsi
+    0xffffffff800117ab &lt;sys_read+0x1c&gt;:   callq  0xffffffff8000b5b4 &lt;fget_light&gt;
+ 
+  Disassemble from vfs_read+320 until the end of the function:
+
+    crash&gt; dis -f vfs_read+320
+    0xffffffff8119d4e0 &lt;vfs_read+320&gt;:  cmpq   $0x0,0x20(%rax)
+    0xffffffff8119d4e5 &lt;vfs_read+325&gt;:  jne    0xffffffff8119d3e8 &lt;vfs_read+72&gt;
+    0xffffffff8119d4eb &lt;vfs_read+331&gt;:  mov    $0xffffffffffffffea,%r12
+    0xffffffff8119d4f2 &lt;vfs_read+338&gt;:  jmp    0xffffffff8119d4c3 &lt;vfs_read+291&gt;
+    0xffffffff8119d4f4 &lt;vfs_read+340&gt;:  nopl   0x0(%rax)
+    0xffffffff8119d4f8 &lt;vfs_read+344&gt;:  callq  0xffffffff8119cc40 &lt;do_sync_read&gt;
+    0xffffffff8119d4fd &lt;vfs_read+349&gt;:  mov    %rax,%r12
+    0xffffffff8119d500 &lt;vfs_read+352&gt;:  jmpq   0xffffffff8119d44c &lt;vfs_read+172&gt;
+    0xffffffff8119d505 &lt;vfs_read+357&gt;:  nopl   (%rax)
+    0xffffffff8119d508 &lt;vfs_read+360&gt;:  mov    $0xfffffffffffffff7,%r12
+    0xffffffff8119d50f &lt;vfs_read+367&gt;:  jmp    0xffffffff8119d4c3 &lt;vfs_read+291&gt;
+    0xffffffff8119d511 &lt;vfs_read+369&gt;:  mov    $0xfffffffffffffff2,%r12
+    0xffffffff8119d518 &lt;vfs_read+376&gt;:  jmp    0xffffffff8119d4c3 &lt;vfs_read+291&gt;
+    0xffffffff8119d51a &lt;vfs_read+378&gt;:  nopw   0x0(%rax,%rax,1)
+ 
+  Display the source code listing of the mmput() function:
+
+    crash&gt; dis -s mmput
+    FILE: kernel/fork.c
+    LINE: 617
+    
+      612   
+      613   /*
+      614    * Decrement the use count and release all resources for an mm.
+      615    */
+      616   void mmput(struct mm_struct *mm)
+    * 617   {
+      618           might_sleep();
+      619   
+      620           if (atomic_dec_and_test(&mm-&gt;mm_users)) {
+      621                   uprobe_clear_state(mm);
+      622                   exit_aio(mm);
+      623                   ksm_exit(mm);
+      624                   khugepaged_exit(mm); /* must run before exit_mmap */
+      625                   exit_mmap(mm);
+      626                   set_mm_exe_file(mm, NULL);
+      627                   if (!list_empty(&mm-&gt;mmlist)) {
+      628                           spin_lock(&mmlist_lock);
+      629                           list_del(&mm-&gt;mmlist);
+      630                           spin_unlock(&mmlist_lock);
+      631                   }
+      632                   if (mm-&gt;binfmt)
+      633                           module_put(mm-&gt;binfmt-&gt;module);
+      634                   mmdrop(mm);
+      635           }
+      636   }
+ 
+  The disassembly of dentry_kill() shows an indirect call to a function
+  whose address is contained within a register.  Display the source code
+  associated with the indirect function call:
+
+    crash&gt; dis dentry_kill
+    ...
+    0xffffffff811dcfb4 &lt;dentry_kill+324&gt;:	callq  *%rax
+    ...
+    crash&gt; dis -s 0xffffffff811dcfb4
+    FILE: fs/dcache.c
+    LINE: 276
+    
+      271                   spin_unlock(&dentry-&gt;d_lock);
+      272                   spin_unlock(&inode-&gt;i_lock);
+      273                   if (!inode-&gt;i_nlink)
+      274                           fsnotify_inoderemove(inode);
+      275                   if (dentry-&gt;d_op && dentry-&gt;d_op-&gt;d_iput)
+    * 276                           dentry-&gt;d_op-&gt;d_iput(dentry, inode);
+      277                   else
+      278                           iput(inode);
+      279           } else {
+      280                   spin_unlock(&dentry-&gt;d_lock);
+      281           }
+      282   }
+    
+
+</pre>
+</td>
+</tr>
+</table>
+<!--CONTENT ends here-->
+                                        </td>
+                                </tr>
+                        </table>
+                        <hr class="gray" noshade="noshade" />
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                        <td colspan="3"><img src="/img/pixel.gif" width="1" height="10" border="0" alt="" /></td>
+                                </tr>
+                                <tr>
+                                        <td colspan="3"><img src="/img/pixel.gif" width="1" height="30" border="0" alt="" /></td>
+                                </tr>
+                        </table>
+                </td>
+
+</table>
+</body>
+</html>

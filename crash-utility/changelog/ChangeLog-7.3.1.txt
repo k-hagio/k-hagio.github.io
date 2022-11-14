@@ -1,0 +1,821 @@
+commit c492ecb3de0624ec9d131b952e9fb725616fccdf
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Wed Nov 24 13:34:36 2021 +0900
+
+    crash-7.3.0 -> crash-7.3.1
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit f61a3e38b07b517e35d506ff3e38a805cf36707e
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Tue Nov 16 02:42:23 2021 +0000
+
+    log: add warning to help text to inform the inaccuracy of -T option
+    
+    The timestamps of the "log -T" option are inaccurate because they are
+    from local_clock(), which returns the raw counter in the local CPU and
+    it's different from the elapsed wall time.
+    
+    The dmesg command, which the "log -T" option imitates, has a similar
+    behavior in nature and a warning in its help text.  Let's add a warning
+    also to the crash's help text to inform the inaccuracy for now.
+    
+    Link: https://listman.redhat.com/archives/crash-utility/2021-September/msg00044.html
+    Reported-by: Martin Moore <martin.moore@hpe.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 93f8e64228b7e5dc3fcd9f68299bd2c6d6f7efe1
+Author: Aaron Tomlin <atomlin@redhat.com>
+Date:   Mon Nov 1 11:39:34 2021 +0000
+
+    kernel: show that the kernel is tainted at init-time
+    
+    Explicitly indicate to the user that the Linux kernel is tainted
+    at init-time or when the 'sys' command is used.
+    
+    Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
+
+commit 8c6e537e3d0dd961ac29f9ac17086f8a8780796f
+Author: Aaron Tomlin <atomlin@redhat.com>
+Date:   Mon Nov 1 11:39:33 2021 +0000
+
+    kernel: Introduce is_kernel_tainted()
+    
+    Provide a quick way to test if the given Linux kernel is "tainted".
+    Support for Linux-2.6.12 and above, to date.
+    
+    Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
+
+commit 1564195daa2c993316021bd62d093981c3d7e0cc
+Author: Aaron Tomlin <atomlin@redhat.com>
+Date:   Mon Nov 1 11:39:32 2021 +0000
+
+    kernel: consolidate show_kernel_taints()
+    
+    No functional change.
+    
+    Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
+
+commit ca5641cebd81ef4572577b3710f43d08906afbde
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Thu Nov 11 15:20:52 2021 +0900
+
+    arm64: Update SECTION_SIZE_BITS for kernels >= 5.12
+    
+    Update the default SECTION_SIZE_BITS value for arm64 Linux 5.12
+    and later kernels that contain kernel commit f0b13ee23241
+    ("arm64/sparsemem: reduce SECTION_SIZE_BITS").
+    
+    Reported-by: Ankur Bansal <er.ankurbansal@gmail.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit e90c0011d6e9476104c4c43aa76d2d0830a15946
+Author: Philipp Rudo <prudo@redhat.com>
+Date:   Tue Nov 9 14:52:22 2021 +0100
+
+    Fix live debugging with lockdown=integrity
+    
+    With kernel lockdown the access to kernel interfaces that allow to
+    extract confidential information (lockdown=confidentiality) or modify a
+    running kernel (lockdown=integrity) can be restricted. Two of the
+    interfaces that can be restricted are /dev/mem (integrity &
+    confidentiality) and /proc/kcore (confidentiality). With
+    lockdown=integrity this leads to a situation where /dev/mem exists but
+    is not readable while /proc/kcore exists and is readable. This breaks
+    crash's live debugging when it is invoked without argument, i.e.
+    
+    $ crash
+    [...]
+    crash: /dev/mem: Operation not permitted
+    
+    while passing /proc/kcore as image succeeds. The reason for this is that
+    crash always picks /dev/mem as source when it exits but doesn't check if
+    it is readable. Fix this by only selecting /dev/mem when it is readable.
+    
+    Signed-off-by: Philipp Rudo <prudo@redhat.com>
+
+commit 488a59f85a57961fb0527aac40ae30fc7a17a24c
+Author: Alexander Egorenkov <egorenar@linux.ibm.com>
+Date:   Wed Oct 13 10:56:39 2021 +0200
+
+    Handle task_struct cpu member changes for kernels >= 5.16-rc1
+    
+    Kernel commit bcf9033e5449bdcaa9bed46467a7141a8049dadb
+    ("sched: move CPU field back into thread_info if THREAD_INFO_IN_TASK=y")
+    moved the member cpu of task_struct back into thread_info.
+    Without the patch, crash fails with the following error message
+    during session initialization:
+    
+      crash: invalid structure member offset: task_struct_cpu
+             FILE: task.c  LINE: 2904  FUNCTION: add_context()
+    
+    Signed-off-by: Alexander Egorenkov <egorenar@linux.ibm.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 52bf7e280d757e5666df303c80bd85e8413bd730
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Mon Oct 25 16:53:26 2021 +0900
+
+    arm64: Use VA_BITS for page_offset calculation
+    
+    Commit 167d37e347fe ("arm64: assign page_offset with VA_BITS kernel
+    configuration value") changed the page_offset calculation from
+    using VA_BITS_ACTUAL to CONFIG_ARM64_VA_BITS.  This caused an error
+    for ramdumps without vmcoreinfo like this:
+    
+      crash: vmlinux and /var/tmp/ramdump_elf_XUtCMT do not match!
+    
+    Set the vmcoreinfo value to VA_BITS if available, and use VA_BITS
+    for page_offset calculation instead.
+    
+    Also remove ARM64_FLIP_PAGE_OFFSET_ACTUAL because it's not used
+    actually.
+    
+    Reported-by: Ankur Bansal <er.ankurbansal@gmail.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit ae02a58885fd74c3115006228452cf41d51cd296
+Author: Tao Liu <ltao@redhat.com>
+Date:   Sat Oct 16 13:21:17 2021 +0800
+
+    symbols: Add mod_symname_hash table dump to help -s
+    
+    Previously, help -s only print out the dump status of symname_hash
+    table. Since we have mod_symname_hash table introduced, let's print
+    out mod_symname_hash in help -s as well.
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+
+commit 79ee405bd7c78223fb862520ddf97c0553e45957
+Author: Tao Liu <ltao@redhat.com>
+Date:   Sat Oct 16 13:21:16 2021 +0800
+
+    symbols: Refactor SYMNAME_HASH_INDEX macro to be a function
+    
+    SYMNAME_HASH_INDEX is used as the index of symname hash table. It will
+    be out of range if SYMNAME_HASH_INDEX is negative. This patch avoids
+    the risk by changing the marco into a function, and casting and calculating
+    the numbers as unsigned.
+    
+    Suggested-by: Lianbo Jiang <lijiang@redhat.com>
+    Suggested-by: Philipp Rudo <prudo@redhat.com>
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+
+commit 6853afb07656caa0aa6565aea7b36c143ba46c24
+Author: Tao Liu <ltao@redhat.com>
+Date:   Sat Oct 16 13:21:15 2021 +0800
+
+    symbols: Sync module symbols into mod_symtable whenever module symbols change
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+    Reviewed-by: Philipp Rudo <prudo@redhat.com>
+
+commit ee3e2904c06d3fac947da5951b83397426ad9a84
+Author: Tao Liu <ltao@redhat.com>
+Date:   Sat Oct 16 13:21:14 2021 +0800
+
+    symbols: Intergrate symbol_exists() with mod_symname_hash search
+    
+    This patch introduces mod_symname_hash search to symbol_exists()
+    to improve its performance. And code refactoring for
+    kernel_symbol_exists().
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+    Reviewed-by: Philipp Rudo <prudo@redhat.com>
+
+commit 906c2ab75bbd410c42bacc4a52c58317c4c62e91
+Author: Tao Liu <ltao@redhat.com>
+Date:   Sat Oct 16 13:21:13 2021 +0800
+
+    symbols: Extend symname_hash_search() with hash table select
+    
+    Previously symname_hash_search() can only search symbols from kernel's
+    symname_hash. This patch add hash table pointer as parameter for
+    symname_hash_search(). Thus symname_hash_search() can be used both for
+    symname_hash and mod_symname_hash searching.
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+
+commit 4a5e50af9c2dad0dae905a43dee5b15753d96155
+Author: Tao Liu <ltao@redhat.com>
+Date:   Sat Oct 16 13:21:12 2021 +0800
+
+    symbols: Integrate symbol_search() with mod_symname_hash search
+    
+    This patch introduces mod_symname_hash search to symbol_search(),
+    to get a better searching performance.
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+    Reviewed-by: Philipp Rudo <prudo@redhat.com>
+
+commit 3ab39203ddd9af09107f3bab0b4514403b7f93da
+Author: Tao Liu <ltao@redhat.com>
+Date:   Sat Oct 16 13:21:11 2021 +0800
+
+    symbols: Implement install and remove operations for mod_symname_hash
+    
+    Currently the sequence for symbol_search to search a symbol is: 1) kernel
+    symname hash table, 2) iterate all kernel symbols, 3) iterate all kernel
+    modules and their symbols. In the worst case, if a non-exist symbol been
+    searched, all 3 stages will be went through. The time consuming status for
+    each stage is like:
+    
+        stage 1         stage 2         stage 3
+        0.007000(ms)    0.593000(ms)    2.421000(ms)
+    
+    stage 3 takes too much time when comparing to stage 1. This patch series
+    introduces a symname hash table for kernel modules, to improve the
+    performance of symbol searching.
+    
+    Functions symbol_search() and symbol_exists() are fundamental and widely
+    used by other crash functions, thus the benefit of performance improvement
+    can get accumulated. For example, "ps -m" and "irq" commands, which call
+    the functions many times, will become faster with the patch series.
+    
+    This patch indroduces mod_symname_hash, and its install/remove operations.
+    Since symbol_search() has to return the lowest address symbol and
+    symbol_search_next() returns the next lowest symbol, thus the installation
+    should be sorted ascendingly.
+    
+    In mod_symname_hash_install_range() scenario, spn are already arranged
+    ascendingly, so for mod_symname_hash_install():
+    
+    Install spn previous to sp:
+    
+      If sp is the start of bucket, or
+      1) spn->value is smaller than sp->value.
+    
+    Install spn next to sp:
+    
+      1) sp->name_hash_next is NULL, or
+      2) sp->name_hash_next->value is larger than spn->value
+    
+    spn->value is the kernel address of the symbol and will not change.
+    So we use it mainly to determine the sequence. When spn->value equals
+    sp->value, they must be symbols within a kernel module.
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+
+commit 7f38d1baf794823355ee100b3a1914155d4190f2
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Mon Sep 27 09:45:42 2021 +0900
+
+    diskdump: Add support for reading dumpfiles compressed by Zstandard
+    
+    Add support for reading dumpfiles compressed by Zstandard (zstd)
+    using makedumpfile.
+    
+    To build crash with zstd support, type "make zstd".
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit cf0c8d10e1870d89b39f40382634db51aa8fcf2c
+Author: Hari Bathini <hbathini@linux.ibm.com>
+Date:   Fri Sep 3 17:33:42 2021 +0530
+
+    mod: fix module object file lookup
+    
+    On systems where vmlinux file is not under /usr/lib/debug/lib/modules
+    directory, 'mod -s|-S' command may fail to find the module's object
+    file with the below error:
+    
+        mod: cannot find or load object file for sd_mod module
+    
+    Fix it by trying all possible module object file extentions while
+    searching for the object file under /usr/lib/debug/lib/modules
+    directory.
+    
+    Signed-off-by: Naveen N. Rao <naveen.n.rao@linux.ibm.com>
+    Signed-off-by: Hari Bathini <hbathini@linux.ibm.com>
+
+commit 15765867c0f1d937db5ec06f51adb6bfd13354ea
+Author: Ritesh Harjani <riteshh@linux.ibm.com>
+Date:   Thu Aug 26 02:31:10 2021 +0530
+
+    ppc64: Add MMU type info in machdep command
+    
+    This adds MMU type info in "machdep" command.
+    
+    Signed-off-by: Ritesh Harjani <riteshh@linux.ibm.com>
+
+commit 3db5fff2e9d7b8762d1bd46d8d2c47ba4c7e374f
+Author: Ritesh Harjani <riteshh@linux.ibm.com>
+Date:   Thu Aug 26 02:31:08 2021 +0530
+
+    .gitignore: Add cscope, ctags & compile_commands.json
+    
+    Add cscope, ctags & compile_commands.json in .gitignore file.
+    
+    Signed-off-by: Ritesh Harjani <riteshh@linux.ibm.com>
+
+commit 4b34197508578bb43639e6d169fb91fb0489fa2b
+Author: James Hsu <james.hsu@mediatek.com>
+Date:   Wed Aug 18 15:45:47 2021 +0800
+
+    arm64: Get CPU registers from ELF notes even without crash_notes symbol
+    
+    Currently arm64 crash retrieves the CPU registers from crash_notes symbol
+    or ELF notes only when the symbol exists, but there are dumpfiles which
+    have the registers in ELF notes without the symbol.
+    
+    With the patch, crash can retrieve the registers from ELF notes without
+    the crash_notes symbol.
+    
+    Signed-off-by: James Hsu <james.hsu@mediatek.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 44e5801d9016987b6b4ebd571bfde8ae3e75da7b
+Author: Philipp Rudo <prudo@redhat.com>
+Date:   Thu Aug 5 15:19:37 2021 +0200
+
+    x86_64: Fix check for __per_cpu_offset initialization
+    
+    Since at least kernel v2.6.30 the __per_cpu_offset gets initialized to
+    __per_cpu_load.  So first check if the __per_cpu_offset was set to a
+    proper value before reading any per cpu variable to prevent potential
+    bugs.
+    
+    [ kh: added check for the existence of __per_cpu_load ]
+    
+    Signed-off-by: Philipp Rudo <prudo@redhat.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 881f33d97cee9895796829d0cc969b51dd34d831
+Author: Roman Bolshakov <r.bolshakov@yadro.com>
+Date:   Thu Jun 17 02:27:35 2021 +0300
+
+    diskdump: Introduce read_pd()
+    
+    Standalone function for reading of page descriptors is needed later for
+    of expected core size and detection of incomplete dumps.
+    
+    Signed-off-by: Roman Bolshakov <r.bolshakov@yadro.com>
+
+commit 1425b0504b1e79d88a2d188d7e4c0e7fceba4501
+Author: Roman Bolshakov <r.bolshakov@yadro.com>
+Date:   Thu Jun 17 02:27:34 2021 +0300
+
+    diskdump: Print total number of dumpable pages
+    
+    It's not clear how broken an incomplete dump from the existing debugging
+    prints. Aggregate number of valid pages helps to figure out approximate
+    size of the dump. Size of a complete dump is roughly:
+    
+      EXPECTED_CORE_SIZE = a few pages (kdump headers + bitmaps + descriptors) +
+                           (total_valid_pages * block_size) * compression rate
+    
+    An incomplete core would be significantly smaller than:
+    
+            total_valid_pages * block_size
+    
+    Signed-off-by: Roman Bolshakov <r.bolshakov@yadro.com>
+
+commit 41cda195c6421fbde72ed67b32b8c1ab3eb0c56f
+Author: Roman Bolshakov <r.bolshakov@yadro.com>
+Date:   Thu Jun 17 02:27:33 2021 +0300
+
+    netdump: Permit --zero_excluded for incomplete ELF dumps
+    
+    DUMP_ELF_INCOMPLETE is set very late after ENOSPC error is hit by
+    makedumpfile. Any following error that prevents modification of ELF
+    header would result in effectively incomplete core that doesn't have the
+    flag. zero_excluded flag doesn't work for such kind of incomplete core.
+    
+    Signed-off-by: Roman Bolshakov <r.bolshakov@yadro.com>
+
+commit 4631320e96f8a63c897fbbce4e87e3c47af40bc9
+Author: Roman Bolshakov <r.bolshakov@yadro.com>
+Date:   Thu Jun 17 02:27:32 2021 +0300
+
+    diskdump: Fail readmem() early if dump is incomplete
+    
+    kdump format description [1] says:
+    
+       [...] zero page has its own offset not equal 0. So when reading page
+       from incomplete core, only the page lost by ENOSPACE errors has 0 in its
+       corresponding page descriptor's member offset.
+    
+    crash has special treatment for page descriptors with zero offset only if
+    DUMP_DH_COMPRESSED_INCOMPLETE is set in dump header. However,
+    makedumpfile places the flag after ENOSPC is hit and only if dump header
+    modification went without errors.
+    
+    In case if crashkernel environment was terminated early (e.g. by BMC) or
+    some other reason, DUMP_DH_COMPRESSED_INCOMPLETE won't be set on the
+    dump header. Then cache_page() would be performed on pages with
+    pd.offset == 0 and due to pd.size == 0 it'll skip read into
+    compressed_page and then non related pre-existing contents of
+    compressed_page will copied into page cache for the non-present page.
+    
+    Ultimately, it'll lead to a cryptic failure, like:
+    
+      crash: invalid kernel virtual address: 72288cacacf427f8 [...]
+    
+    The failure would be a bit cleaner if crash explicitly fails on the page
+    that is an outcome of incomplete dump:
+    
+      crash: page incomplete: kernel virtual address: c000003fff9d17e8 [...]
+    
+    Debugging level 8 would also produce exact offset from data_offset to
+    print descriptor value with ease:
+    
+      read_diskdump/cache_page: descriptor with zero offset found at paddr/pfn/pos: 3fff9d0000/3fff9d/743dd
+    
+    That helps in inspecting broken descriptor with hexdump or similar tools:
+    
+      hexdump -s (data_offset + pos * 0x18) -n 0x18
+    
+    [1] https://github.com/makedumpfile/makedumpfile/blob/master/IMPLEMENTATION
+    
+    Signed-off-by: Roman Bolshakov <r.bolshakov@yadro.com>
+
+commit 80334ed25820cc08d147de5da361f427885cdd9e
+Author: Aaron Tomlin <atomlin@redhat.com>
+Date:   Tue Jul 13 14:24:49 2021 +0100
+
+    kmem: Add support to -S option to specify a range of CPU-specific slab data
+    
+    With this patch, it is now possible for one to explicitly specify a range
+    of CPU-specific slab data to list. For example:
+    
+    Note: This is only applicable to a Linux kernel with Kconfig
+          CONFIG_SLUB enabled. The optional argument GNU extension
+          for getopt(3) is utilized; and, the CPU range must be
+          specified as expected
+    
+        crash> kmem -S=1,4 kmalloc-512
+        CACHE             OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE  NAME
+        ffff8d3f07c06c00      512       1916      3680    115    16k  kmalloc-512
+        CPU 1 KMEM_CACHE_CPU:
+          ffff8d461fa6f140
+        CPU 1 SLAB:
+          SLAB              MEMORY            NODE  TOTAL  ALLOCATED  FREE
+          fffff540df7c4000  ffff8d45df100000     0     32          8    24
+          FREE / [ALLOCATED]
+           ffff8d45df100000  (cpu 1 cache)
+          [ffff8d45df100200]
+           ffff8d45df101000  (cpu 1 cache)
+         ...skipped ...
+        CPU 4 KMEM_CACHE_CPU:
+          ffff8d461fb2f140
+        CPU 4 SLAB:
+          SLAB              MEMORY            NODE  TOTAL  ALLOCATED  FREE
+          fffff540dfde3800  ffff8d45f78e0000     0     32          8    24
+          FREE / [ALLOCATED]
+          [ffff8d45f78e0000]
+           ffff8d45f78e0200  (cpu 4 cache)
+           ffff8d45f78e0400  (cpu 4 cache)
+         ...skipped ...
+    
+    Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit f53b73e8380bca054cebd2b61ff118c46609429b
+Author: Pingfan Liu <piliu@redhat.com>
+Date:   Fri Jul 2 10:14:24 2021 +0800
+
+    arm64: implement switchable PTOV()/VTOP() for kernels >= 5.10
+    
+    Crash encounters a bug like the following:
+        ...
+        SECTION_SIZE_BITS: 30
+        CONFIG_ARM64_VA_BITS: 52
+              VA_BITS_ACTUAL: 48
+        (calculated) VA_BITS: 48
+         PAGE_OFFSET: ffff000000000000
+            VA_START: ffff800000000000
+             modules: ffff800008000000 - ffff80000fffffff
+             vmalloc: ffff800010000000 - ffffffdfdffeffff
+        kernel image: ffff800010000000 - ffff800012750000
+             vmemmap: ffffffdfffe00000 - ffffffffffffffff
+    
+        <readmem: ffff800011c53bc8, KVADDR, "nr_irqs", 4, (FOE), b47bdc>
+        <read_kdump: addr: ffff800011c53bc8 paddr: eb453bc8 cnt: 4>
+        read_netdump: addr: ffff800011c53bc8 paddr: eb453bc8 cnt: 4 offset: 1c73bc8
+        irq_stack_ptr:
+          type: 1, TYPE_CODE_PTR
+          target_typecode: 8, TYPE_CODE_INT
+          target_length: 8
+          length: 8
+        GNU_GET_DATATYPE[thread_union]: returned via gdb_error_hook
+        <readmem: ffff000b779c0050, KVADDR, "IRQ stack pointer", 8, (ROE), 3a37bea0>
+        <read_kdump: addr: ffff000b779c0050 paddr: fff1000bf79c0050 cnt: 8>
+        read_netdump: READ_ERROR: offset not found for paddr: fff1000bf79c0050
+        crash: read error: kernel virtual address: ffff000b779c0050  type: "IRQ stack pointer"
+        ...
+    
+    Apparently, for a normal system, the 'paddr: fff1000bf79c0050' is
+    unreasonable.
+    
+    This bug connects with kernel commit 7bc1a0f9e176 ("arm64: mm: use
+    single quantity to represent the PA to VA translation"), which removed
+    physvirt_offset kernel variable and changed the PTOV()/VTOP() formulas.
+    
+    Implement switchable PTOV()/VTOP() to cope with different kernel
+    version.
+    
+    Signed-off-by: Pingfan Liu <piliu@redhat.com>
+
+commit bf1379a8b6ff8d6a8fa12978f7194f15f85c4380
+Author: Pingfan Liu <piliu@redhat.com>
+Date:   Fri Jul 2 10:14:23 2021 +0800
+
+    arm64: use dedicated bits to record the VA space layout changes
+    
+    arm64 memory layout experiences big changes due to the following kernel
+    commits in date descending order:
+      5. 7bc1a0f9e176 arm64: mm: use single quantity to represent the PA to VA translation
+      4. b6d00d47e81a arm64: mm: Introduce 52-bit Kernel VAs
+      3. 5383cc6efed1 arm64: mm: Introduce vabits_actual
+      2. 14c127c957c1 arm64: mm: Flip kernel VA space
+      1. f80fb3a3d508 arm64: add support for kernel ASLR
+    
+    For 1, crash has already used NEW_VMEMMAP to trace it.
+    For 2, crash lacks a flag to tag it and handle it differently.
+    For 3, two important kernel variables vabits_actual and physvirt_offset
+    are introduced.
+    For 4, since it comes immediately after 3, crash-utility does not need
+    to distinguish it.
+    For 5, kernel variable phyvirt_offset is removed
+    
+    These changes have effects on PTOV()/VTOP() formula. So introducing
+    two bits HAS_PHYSVIRT_OFFSET and FLIPPED_VM as hint to apply different
+    formula.
+    
+    Signed-off-by: Pingfan Liu <piliu@redhat.com>
+
+commit 167d37e347fe35c6f7db826e8539e192c4375564
+Author: Pingfan Liu <piliu@redhat.com>
+Date:   Fri Jul 2 10:14:22 2021 +0800
+
+    arm64: assign page_offset with VA_BITS kernel configuration value
+    
+    On RHEL9, crash hits a bug when executing "crash /proc/kcore":
+    seek error: kernel virtual address: ffff6a0f3fff0000 type: "pmd page"
+    
+    The kernel virtual address does not vary with vabits_actual, instead,
+    is determined by configuration value. But crash does not observe this
+    fact.
+    
+    Since vabits_actual related kernel commit is introduced after arm64
+    mm layout flip commit, so changes are safe under the condition if
+    (ms->VA_BITS_ACTUAL), and keep the else branch untouched.
+    
+    Signed-off-by: Pingfan Liu <piliu@redhat.com>
+
+commit 5719afc7a40868418405a87a2711088556e68a3b
+Author: Pingfan Liu <piliu@redhat.com>
+Date:   Fri Jul 2 10:14:21 2021 +0800
+
+    arm64: rename ARM64_PAGE_OFFSET_ACTUAL to ARM64_FLIP_PAGE_OFFSET_ACTUAL
+    
+    Reflect the flipped layout of kernel VA, which is introduced by
+    kernel commit 14c127c957c1 ("arm64: mm: Flip kernel VA space").
+    
+    Signed-off-by: Pingfan Liu <piliu@redhat.com>
+
+commit d6b4f36d6b22b70fb14e692f36d20910ef5563c1
+Author: Alexander Egorenkov <egorenar@linux.ibm.com>
+Date:   Tue Jun 29 08:39:00 2021 +0200
+
+    Handle task_struct state member changes for kernels >= 5.14-rc1
+    
+    Kernel commit 2f064a59a11ff9bc22e52e9678bc601404c7cb34 ("sched: Change
+    task_struct::state") renamed the member state of task_struct to __state
+    and its type changed from long to unsigned int.  Without the patch,
+    crash fails to start up with the following error:
+    
+      crash: invalid structure member offset: task_struct_state
+             FILE: task.c  LINE: 5929  FUNCTION: task_state()
+    
+    Signed-off-by: Alexander Egorenkov <egorenar@linux.ibm.com>
+
+commit 4badc6229c69f5cd9da7eb7bdf400a53ec6db01a
+Author: Petr Tesařík <ptesarik@suse.cz>
+Date:   Fri Jun 25 17:21:18 2021 +0200
+
+    Fix pvops Xen detection for kernels >= v4.20
+    
+    Kernel commit 5c83511bdb9832c86be20fb86b783356e2f58062 removed
+    pv_init_ops, and later commit 054ac8ad5ebe4a69e1f0e842483821ddbe560121
+    removed the Xen-specific paravirt patch function. As a result, pvops Xen
+    dumps are no longer recognized as Xen dumps, and virtual-to-physical
+    translation fails.
+    
+    Use the value of xen_start_info to determine whether the kernel is
+    running in Xen PV mode. This pointer is set during the initialization of
+    a PV domain. Kudos to Juergen Gross, who suggested this check.
+    
+    Signed-off-by: Petr Tesarik <ptesarik@suse.com>
+
+commit eaf14f852ae79f7745934e213661f1c6abac711e
+Author: Greg Edwards <gedwards@ddn.com>
+Date:   Wed Jun 23 13:50:47 2021 -0600
+
+    Fix 'waitq' command for Linux 4.13 and later kernels
+    
+    The wait queue structs and members were renamed in 4.13 in commits:
+    
+      ac6424b981bc ("sched/wait: Rename wait_queue_t => wait_queue_entry_t")
+      9d9d676f595b ("sched/wait: Standardize internal naming of wait-queue heads")
+      2055da97389a ("sched/wait: Disambiguate wq_entry->task_list and wq_head->task_list naming")
+    
+    Add support to the 'waitq' command for these more recent kernels.
+    
+    [ kh: suppressed compilation warnings ]
+    
+    Signed-off-by: Greg Edwards <gedwards@ddn.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit f091b5e76d2d6e81b12cd40df7b5863c9e2efed1
+Author: Firo Yang <firo.yang@suse.com>
+Date:   Tue May 25 18:17:37 2021 +0800
+
+    list: add -O option for specifying head node offset
+    
+    The -O option is very useful to specify the embedded head node's
+    offset which is different to the offset of other nodes embedded,
+    e.g. dentry.d_subdirs (the head node) and dentry.d_child.
+    
+    [ kh: did some cosmetic adjustments ]
+    
+    Signed-off-by: Firo Yang <firo.yang@suse.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit e61841a8b86ac551c314f74f4b82daae84f99700
+Author: Luc Chouinard <lucchouina@gmail.com>
+Date:   Wed Jun 9 07:59:40 2021 -0400
+
+    extensions/eppic.mk: Enable use of alternate eppic branch
+    
+    Made significant changes and fixes to eppic.
+    Using options in the clone command break due to args parsing.
+    Use separate variable for clone options.
+    
+    Closes: https://github.com/crash-utility/crash/pull/86
+
+commit c15a1e025e62134094ba0ac600263d75673d5a22
+Author: Youling Tang <tangyouling@loongson.cn>
+Date:   Fri Apr 23 15:42:11 2021 +0800
+
+    MIPS64: three fixes for MIPS64 kernels
+    
+    Three fixes for MIPS64 kernels:
+     (1) To support ramdumps, add the machine_type() check for MIPS64 in
+         ramdump_to_elf().
+     (2) To fix a stuck issue when invoking crash with "-d1" or larger
+         debug value, add the machine_type() check to get the correct
+         dump NOTE offsets.
+     (3) Fix the reference file path to the definition of the pt_regs
+         structure, to which mips64_regster refers.
+    
+    [ kh: merged three patches into one ]
+    
+    Signed-off-by: Youling Tang <tangyouling@loongson.cn>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 859d1c0e8a6618634cbc1fe7ee2b082a6a3c99a1
+Author: Youling Tang <tangyouling@loongson.cn>
+Date:   Fri Apr 23 15:40:41 2021 +0800
+
+    MIPS32/64: Add 'irq' command support
+    
+    Add support for the 'irq' series of commands in the MIPS32/64
+    architecture, except for the 'irq -d' command, others can be
+    used.  Without the patch, the 'irq' command fails as follows:
+    
+      irq: cannot determine number of IRQs
+    
+    Signed-off-by: Youling Tang <tangyouling@loongson.cn>
+
+commit 704623dfde43da98ffb354b3d7f450cd012a8215
+Author: Youling Tang <tangyouling@loongson.cn>
+Date:   Thu Jun 3 16:07:41 2021 +0800
+
+    defs.h: Fix the value of TIF_SIGPENDING macro
+    
+    Correct the change of the value of TIF_SIGPENDING macro between
+    different kernel versions.
+    
+    TIF_SIGPENDING changes with the kernel version as follows:
+      ARM     2 -> 0 at v2.6.23
+      MIPS    2 -> 1 at v2.6.23
+      MIPS64  2 -> 1 at v2.6.23
+      PPC     2 -> 1 at v2.6.23
+      IA64    1 -> 0 at v2.6.23
+      PPC64   2 -> 1 at v2.6.23
+      S390    2 -> 1 at v3.16
+      S390X   2 -> 1 at v3.16
+    
+    Signed-off-by: Youling Tang <tangyouling@loongson.cn>
+
+commit ec44b902d3467e7b86ee39e2d7d472b9cb202148
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Mon May 31 14:08:28 2021 +0900
+
+    memory: Fix for "kmem -n" option to display NID correctly
+    
+    The nid member of struct memory_block is a 4-byte integer, but read
+    and printed as a 8-byte integer on 64-bit machines.  Without the
+    patch, the option displays wrong NIDs.
+    
+      crash> kmem -n
+      ...
+         MEM_BLOCK        NAME          PHYSICAL RANGE       NODE  STATE   START_SECTION_NO
+       ffff9edeff2b9400   memory0             0 -   7fffffff 14195095130662240256  ONLINE  0
+       ffff9edeff2bb400   memory2     100000000 -  17fffffff 14195094718345379840  ONLINE  32
+    
+    The issue seems to appear on Linux 5.12 and later kernels that contain
+    commit e9a2e48e8704c ("drivers/base/memory: don't store phys_device
+    in memory blocks"), which changed the arrangement of the members of
+    struct memory_block.
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 0b5435e10161345cf713ed447a155a611a1b408b
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Wed May 26 17:33:13 2021 +0900
+
+    memory: Add support for SECTION_TAINT_ZONE_DEVICE flag
+    
+    Fix for "kmem -n|-p" options on Linux 5.12-rc1 and later kernels
+    that contain commit 1f90a3477df3f ("mm: teach pfn_to_online_page()
+    about ZONE_DEVICE section collisions").  Without the patch, the
+    "kmem -n" option incorrectly shows mem_map addresses containing the
+    flag in bit 5 as part of the virtual address, and also the "kmem -p"
+    option shows page structures at wrong position.  With the patch,
+    the "kmem -n" option displays the new "D" state flag.
+    
+    Without the patch:
+      crash> kmem -n
+      ...
+      NR      SECTION        CODED_MEM_MAP        MEM_MAP       STATE PFN
+      1040  ffff9edf3ffd4100  ffffe2bcc0000010  ffffe2bd42000010  PMOE  34078720
+                                            ^                 ^
+      crash> kmem -p
+          PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+      ffffe2bd42000010 2080000000           400040 1ffffffff 9961471 dead000000000122 referenced,active,error
+      ffffe2bd42000050 2080001000           800080 1ffffffff 9961471 dead000000000122 referenced,active,error
+      ffffe2bd42000090 2080002000                0 1ffffffff 9961471 dead000000000122 referenced,active,error
+                    ^^
+    With the patch:
+      crash> kmem -n
+      ...
+      NR      SECTION        CODED_MEM_MAP        MEM_MAP       STATE PFN
+      1040  ffff9edf3ffd4100  ffffe2bcc0000000  ffffe2bd42000000  PMOED 34078720
+    
+      crash> kmem -p
+          PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+      ffffe2bd42000000 2080000000 ffff9ebfc0044100        0  1 97ffffc0000200 slab
+      ffffe2bd42000040 2080001000 ffff9ebfc0044400        0  1 97ffffc0000200 slab
+      ffffe2bd42000080 2080002000                0        0  1 97ffffc0000000
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 647a5c33e1c94054d7b63168cd6c12901591cb77
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Thu May 27 18:02:11 2021 +0800
+
+    Fix for "kmem -s|-S" option on Linux 5.7 and later kernels
+    
+    Linux 5.7 and later kernels that contain kernel commit 1ad53d9fa3f6
+    ("slub: improve bit diffusion for freelist ptr obfuscation") changed
+    the calculation formula in the freelist_ptr(), which added a swab()
+    call to mix bits a little more.  When kernel is configured with the
+    "CONFIG_SLAB_FREELIST_HARDENED=y", without the patch, the "kmem -s|-S"
+    options display wrong statistics and state whether slab objects are
+    in use or free and can print the following errors:
+    
+      crash> kmem -s
+      CACHE             OBJSIZE  ALLOCATED     TOTAL  SLABS  SSIZE  NAME
+      87201e00              528          0         0      0     8k  xfs_dqtrx
+      87201f00              496          0         0      0     8k  xfs_dquot
+      kmem: xfs_buf: slab: 37202e6e900 invalid freepointer: b844bab900001d70
+      kmem: xfs_buf: slab: 3720250fd80 invalid freepointer: b8603f9400001370
+      ...
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit a7ecf2467f953b632713f38ab8104596755bca8c
+Author: John Donnelly <john.p.donnelly@oracle.com>
+Date:   Wed May 12 14:48:03 2021 -0700
+
+    arm64: Add lowercase tcr_el1_t1sz
+    
+    Commit 1c45cea "arm64: Change tcr_el1_t1sz variable name to
+    TCR_EL1_T1SZ", renamed the variable to upper case, but there are
+    kernels in existence that still have the lower case name, which
+    breaks crash backwards compatibility.
+    
+    Resolves: https://github.com/crash-utility/crash/pull/82
+    Signed-off-by: John Donnelly <john.p.donnelly@oracle.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 1ee4c407d7874b8eef17e863671edc8ccfdd7c71
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Tue May 18 10:18:10 2021 +0900
+
+    Mark start of 7.3.1 development phase with version 7.3.0++
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
