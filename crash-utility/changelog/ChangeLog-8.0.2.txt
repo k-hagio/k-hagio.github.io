@@ -1,0 +1,1090 @@
+commit f1cd581d1c4afa5b8ffdfaa6a3ea9f545fe4ec91
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Wed Nov 16 13:13:39 2022 +0900
+
+    crash-8.0.1 -> crash-8.0.2
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit a158590f475c8d6d504b0c5e28b3cd91cfd47877
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Wed Nov 9 14:21:57 2022 +0800
+
+    Fix for "ps/vm" commands to display correct %MEM and RSS values
+    
+    The ps/vm commands may print the bogus value of the %MEM and RSS, the
+    reason is that the counter of rss stat is updated in asynchronous manner
+    and may become negative, when the SPLIT_RSS_COUNTING is enabled in kernel.
+    
+    As a result, crash will read it from memory and convert from negative to
+    unsigned long integer, eventually it overflows and gets a big integer. For
+    example:
+    
+      crash> ps 1393
+          PID    PPID  CPU       TASK        ST  %MEM      VSZ      RSS  COMM
+         1393       1  24  ffff9584bb542100  RU  541298032135.9     4132 18014398509481908  enlinuxpc64
+                                                 ^^^^^^^^^^^^^^          ^^^^^^^^^^^^^^^^^
+    
+    This is unexpected, crash needs to correct its value for this case.
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit 21139d9456ee41ffc8cec804dc530d6934ddac89
+Author: Matias Ezequiel Vara Larsen <matiasevara@gmail.com>
+Date:   Mon Oct 24 11:35:29 2022 +0200
+
+    Fix segmentation fault in page_flags_init_from_pageflag_names()
+    
+    When read_string() fails in page_flags_init_from_pageflag_names(),
+    error() dereferences the name variable to print the string that the
+    variable points to. However, name points to a string that is not in
+    crash's memory-space thus triggering a segmentation fault.
+    
+    This patch replaces "%s" in the error message with "%lx" so the address
+    is printed instead.  Also replaces "%ld" for mask with "%lx".
+    
+    [ kh: changed the conversion specifiers and commit message ]
+    
+    Signed-off-by: Matias Ezequiel Vara Larsen <matias.vara@vates.fr>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 487551488b15fcd135b29990593699a121730219
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Tue Oct 4 18:57:11 2022 +0800
+
+    ppc64: still allow to move on if the emergency stacks info fails to initialize
+    
+    Currently crash will fail and then exit, if the initialization of
+    the emergency stacks information fails. In real customer environments,
+    sometimes, a vmcore may be partially damaged, although such vmcores
+    are rare. For example:
+    
+      # ./crash ../3.10.0-1127.18.2.el7.ppc64le/vmcore ../3.10.0-1127.18.2.el7.ppc64le/vmlinux  -s
+      crash: invalid kernel virtual address: 38  type: "paca->emergency_sp"
+      #
+    
+    Lets try to keep loading vmcore if such issues happen, so call
+    the readmem() with the RETURN_ON_ERROR instead of FAULT_ON_ERROR,
+    which allows the crash move on.
+    
+    Reported-by: Dave Wysochanski <dwysocha@redhat.com>
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit 3b5e3e1583a1f596360c04e8a322e30cf88f27ab
+Author: Tao Liu <ltao@redhat.com>
+Date:   Mon Sep 19 17:49:23 2022 +0800
+
+    Let "kmem" print task context with physical address
+    
+    Patch [1] enables "kmem" to print task context if the given virtual
+    address is a vmalloced stack.
+    
+    This patch lets "kmem" print task context also when the given address
+    is a physical address.
+    
+    Before:
+        crash> kmem 1883700e28
+           VMAP_AREA         VM_STRUCT                 ADDRESS RANGE                SIZE
+        ffff94eb9102c640  ffff94eb9102b140  ffffb7efce9b8000 - ffffb7efce9bd000    20480
+    
+              PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+        ffffdd28220dc000 1883700000                0        0  1 50000000000000
+    
+    After:
+        crash> kmem 1883700e28
+            PID: 847
+        COMMAND: "khungtaskd"
+           TASK: ffff94f8038f4000  [THREAD_INFO: ffff94f8038f4000]
+            CPU: 72
+          STATE: TASK_RUNNING (PANIC)
+    
+           VMAP_AREA         VM_STRUCT                 ADDRESS RANGE                SIZE
+        ffff94eb9102c640  ffff94eb9102b140  ffffb7efce9b8000 - ffffb7efce9bd000    20480
+    
+              PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+        ffffdd28220dc000 1883700000                0        0  1 50000000000000
+    
+    [1]: https://listman.redhat.com/archives/crash-utility/2022-September/010115.html
+    
+    [ kh: squashed the 4/4 patch into 3/4 ]
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 60cb8650a0126abda661c44d198ebde514eca3e2
+Author: Tao Liu <ltao@redhat.com>
+Date:   Mon Sep 19 17:49:22 2022 +0800
+
+    Fix page offset issue when converting physical to virtual address
+    
+    When trying to convert a physical address to its virtual
+    address in dump_vmap_area() and dump_vmlist(), the vi->retval
+    is added by 2 values: the page aligned address "pcheck"
+    and page offset address "PAGEOFFSET(paddr)".
+    
+    However "paddr" is given by "pcheck", is also page aligned,
+    so "PAGEOFFSET(paddr)" is always 0.
+    
+    In this patch, we will use PAGEOFFSET(vi->spec_addr) to give the
+    page offset, vi->spec_addr is the physical address we'd like
+    to convert, which contains the correct page offset.
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+
+commit ad1397a73594d65aaad9d0b9a94a1dd75d8c61dd
+Author: Tao Liu <ltao@redhat.com>
+Date:   Mon Sep 19 17:49:21 2022 +0800
+
+    Fix "kmem" failing to print task context when address is vmalloced stack
+    
+    When kernel enabled CONFIG_VMAP_STACK, stack can be allocated to
+    vmalloced area. Currently crash didn't handle the case, as a result,
+    "kmem" will not print the task context as expected. This patch fix the
+    bug by checking if the address is a vmalloced stack first.
+    
+    Before:
+        crash> kmem ffffb7efce9bbe28
+           VMAP_AREA         VM_STRUCT                 ADDRESS RANGE                SIZE
+        ffff94eb9102c640  ffff94eb9102b140  ffffb7efce9b8000 - ffffb7efce9bd000    20480
+    
+              PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+        ffffdd28220dc000 1883700000                0        0  1 50000000000000
+    
+    After:
+        crash> kmem ffffb7efce9bbe28
+            PID: 847
+        COMMAND: "khungtaskd"
+           TASK: ffff94f8038f4000  [THREAD_INFO: ffff94f8038f4000]
+            CPU: 72
+          STATE: TASK_RUNNING (PANIC)
+    
+           VMAP_AREA         VM_STRUCT                 ADDRESS RANGE                SIZE
+        ffff94eb9102c640  ffff94eb9102b140  ffffb7efce9b8000 - ffffb7efce9bd000    20480
+    
+              PAGE         PHYSICAL      MAPPING       INDEX CNT FLAGS
+        ffffdd28220dc000 1883700000                0        0  1 50000000000000
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+
+commit 4ea3a806d11f000f2eb1ddc72c2b7a543e319f64
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Fri Sep 16 14:00:01 2022 +0800
+
+    Fix for the invalid linux_banner pointer issue
+    
+    Currently, crash may fail with the following error:
+    
+      # ./crash -s vmlinux vmcore
+      WARNING: invalid linux_banner pointer: 65762078756e694c
+      crash: vmlinux and vmcore do not match!
+    
+    The reason is that the type of the symbol in the data segment may be
+    defined as 'D' or 'd'. The crash only handled the type 'D', but it
+    didn't deal with the type 'd'. For example:
+    
+      # nm vmlinux | grep linux_banner
+      ffffffff827cfa80 d linux_banner
+    
+    It has been observed that a vmlinux compiled by clang has this type.
+    Let's add the type 'd' recognition to solve such issue.
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit bdbf5887d6259ea3108d4fa674f3794adad54d52
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Thu Sep 1 13:42:28 2022 +0900
+
+    Fix gcc-11 compiler warnings on gdb-10.2/gdb/symtab.c
+    
+    Without the patch, the following gcc-11 compiler warnings are emitted
+    for gdb-10.2/gdb/symtab.c:
+    
+    symtab.c: In function 'void gdb_get_datatype(gnu_request*)':
+    symtab.c:7131:31: warning: ISO C++17 does not allow 'register' storage class specifier [-Wregister]
+      7131 |         register struct type *type;
+           |                               ^~~~
+    symtab.c:7132:31: warning: ISO C++17 does not allow 'register' storage class specifier [-Wregister]
+      7132 |         register struct type *typedef_type;
+           |                               ^~~~~~~~~~~~
+    ...
+    
+    Usually we don't fix compiler warnings for gdb, but these are emitted
+    even by "make clean ; make warn", which doesn't recompile the whole
+    gdb, so it would be better to fix.
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 51acac75cdb20caab30a85ebfec5906efe034477
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Thu Sep 1 14:03:09 2022 +0900
+
+    Fix gcc-12 compiler warnings on lkcd_*.c
+    
+    Without the patch, the following gcc-12 compiler warnings are emitted
+    for lkcd_*.c:
+    
+    lkcd_v1.c: In function 'dump_lkcd_environment_v1':
+    lkcd_v1.c:252:20: warning: the comparison will always evaluate as 'true' for the address of 'dh_panic_string' will never be NULL [-Waddress]
+      252 |                 dh && dh->dh_panic_string &&
+          |                    ^~
+    In file included from lkcd_v1.c:21:
+    lkcd_vmdump_v1.h:108:30: note: 'dh_panic_string' declared here
+      108 |         char                 dh_panic_string[DUMP_PANIC_LEN];
+          |                              ^~~~~~~~~~~~~~~
+    ...
+    
+    Reported-by: Lianbo Jiang <lijiang@redhat.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 5b9d3e98cda9d99f3277aabec30d076e62cc5e71
+Author: Chunguang.Xu <chunguang.xu@shopee.com>
+Date:   Thu Aug 25 12:07:20 2022 +0800
+
+    Add debian/ubuntu vmlinux location to default search dirs
+    
+    Now crash cannot find debian/ubuntu kernel vmlinux, we need to
+    explicitly specify the path to vmlinux. Try to add the debian
+    vmlinux location to default search directories.
+    
+    Signed-off-by: Chunguang Xu <chunguang.xu@shopee.com>
+
+commit 3ed9ec5c8d09cffac9772abbf54214125ade9127
+Author: Tao Liu <ltao@redhat.com>
+Date:   Wed Aug 31 11:54:15 2022 +0800
+
+    x86_64: Correct the identifier when locating the call instruction
+    
+    The previous implementation to locate the call instruction is
+    to strstr "call", then check whether the previous char is ' '
+    or '\t'. The implementation is problematic. For example it
+    cannot resolve the following disassembly string:
+    
+    "0xffffffffc0995378 <nfs41_callback_svc+344>:\tcall   0xffffffff8ecfa4c0 <schedule>\n"
+    
+    strstr will locate the "_call" and char check fails,
+    as a result, extract_hex fails to get the calling address.
+    
+    NOTE: the issue is more likely to be reproduced when patch[1] applied.
+    Because without patch[1], the disassembly string will be as follows,
+    so the issue is no longer reproducible.
+    
+    "0xffffffffc0995378:\tcall   0xffffffff8ecfa4c0 <schedule>\n"
+    
+    Before the patch:
+        crash> bt 1472
+        PID: 1472     TASK: ffff8c121fa72f70  CPU: 18   COMMAND: "nfsv4.1-svc"
+         #0 [ffff8c16231a3db8] __schedule at ffffffff8ecf9ef3
+         #1 [ffff8c16231a3e40] schedule at ffffffff8ecfa4e9
+    
+    After the patch:
+        crash> bt 1472
+        PID: 1472     TASK: ffff8c121fa72f70  CPU: 18   COMMAND: "nfsv4.1-svc"
+         #0 [ffff8c16231a3db8] __schedule at ffffffff8ecf9ef3
+         #1 [ffff8c16231a3e40] schedule at ffffffff8ecfa4e9
+         #2 [ffff8c16231a3e50] nfs41_callback_svc at ffffffffc099537d [nfsv4]
+         #3 [ffff8c16231a3ec8] kthread at ffffffff8e6b966f
+         #4 [ffff8c16231a3f50] ret_from_fork at ffffffff8ed07898
+    
+    This patch fix the issue by strstr "\tcall" and " call", to
+    locate the correct call instruction.
+    
+    [1]: https://listman.redhat.com/archives/crash-utility/2022-August/010085.html
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+
+commit 2145b2bb79c59aa25c5155a8f9851554d1813fb9
+Author: Tao Liu <ltao@redhat.com>
+Date:   Wed Aug 31 11:54:13 2022 +0800
+
+    Let gdb get kernel module symbols info from crash
+    
+    Gdb will try to resolve an address to its corresponding symbol name such as
+    when printing a structure. It works fine for kernel symbols, because gdb can
+    find them through vmlinux. However as for kernel modules symbols, crash
+    resolves them by dig into "struct module", which gdb don't know. As a result,
+    gdb fails to translate a kernel module address to its symbol name without
+    "mod -s|-S" options. For example we can reproduce the issue as follows.
+    
+        crash> timer
+        ....
+        4331308176       336  ffff94ea24240860  ffffffffc03762c0  <estimation_timer>
+        ....
+        crash> sym 0xffffffffc03762c0
+        ffffffffc03762c0 (t) estimation_timer [ip_vs]
+    
+    Before patch:
+        crash> timer_list ffff94ea24240860
+        struct timer_list {
+          ....
+          function = 0xffffffffc03762c0,
+          ....
+        }
+    
+    After patch:
+        crash> timer_list ffff94ea24240860
+        struct timer_list {
+          ....
+          function = 0xffffffffc03762c0 <estimation_timer>,
+          ....
+        }
+    
+    In this patch, we add an interface for gdb, when gdb trying to build kernel
+    module's address symbolic, the info can be get from crash.
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+
+commit 9cbfea67eb4f094d47cd841b73ddbbdbe6b58696
+Author: Tao Liu <ltao@redhat.com>
+Date:   Thu Aug 25 14:39:44 2022 +0800
+
+    Fix "task -R" by adding end identifier for union in task_struct
+    
+    Previously, the start and end identifiers for union are "  {\n" and
+    "  }, \n".  However the end identifier is not always as expected.
+    "  },\n" can also be the end identifier with gdb-10.2.  As a result,
+    variable "randomized" is in incorrect state after union, and fails to
+    identify the later struct members.  For example, we can reproduce the
+    issue as follows:
+    
+        crash> task
+        PID: 847      TASK: ffff94f8038f4000  CPU: 72   COMMAND: "khungtaskd"
+        struct task_struct {
+          thread_info = {
+            flags = 2148024320,
+            status = 0,
+            preempt_lazy_count = 0
+          },
+          {
+            <the union>
+          },
+          ...
+          wake_entry = {
+            next = 0x0
+          },
+          ...
+    
+    Before patch:
+    
+        crash> task -R wake_entry
+        PID: 847      TASK: ffff94f8038f4000  CPU: 72   COMMAND: "khungtaskd"
+    
+    After patch:
+    
+        crash> task -R wake_entry
+        PID: 847      TASK: ffff94f8038f4000  CPU: 72   COMMAND: "khungtaskd"
+          wake_entry = {
+            next = 0x0
+          },
+    
+    Signed-off-by: Tao Liu <ltao@redhat.com>
+
+commit f02c8e87fccb1a92fbc025883bc69b6467a4e6c8
+Author: Huang Shijie <shijie@os.amperecomputing.com>
+Date:   Mon Aug 22 09:29:32 2022 +0000
+
+    arm64: use TCR_EL1_T1SZ to get the correct info if vabits_actual is missing
+    
+    After kernel commit 0d9b1ffefabe ("arm64: mm: make vabits_actual a build
+    time constant if possible"), the vabits_actual is not compiled to kernel
+    symbols when "VA_BITS > 48" is false.
+    
+    So the crash will not find the vabits_actual symbol, and it will fail
+    in the end like this:
+    
+      # ./crash
+      ...
+      WARNING: VA_BITS: calculated: 46  vmcoreinfo: 48
+      crash: invalid kernel virtual address: ffff88177ffff000  type: "pud page"
+    
+    This patch introduces the arm64_set_va_bits_by_tcr(), and if crash cannot
+    find vabits_actual symbol, it will use the TCR_EL1_T1SZ register to get
+    the correct VA_BITS_ACTUAL/VA_BITS/VA_START.
+    
+    Tested this patch with:
+      1.) the live mode with /proc/kcore
+      2.) the kdump file with /proc/vmcore.
+    
+    Signed-off-by: Huang Shijie <shijie@os.amperecomputing.com>
+
+commit 4c85e982d25a259f81b5e8c230a67d40d4527ddf
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Wed Aug 24 10:19:20 2022 +0800
+
+    gdb: fix for assigning NULL to std::string
+    
+    When trying to load a module with "mod -s" without its separated debug
+    info file installed, the crash utility will abort as below:
+    
+      crash> mod -s kpatch_test kpatch_test.ko
+      ...
+      terminate called after throwing an instance of 'std::logic_error'
+        what():  basic_string::_M_construct null not valid
+      Aborted (core dumped)
+    
+    Let's return the std::string() instead of std::string(NULL) when a
+    string is null, because the check_specified_kernel_debug_file() may
+    return NULL.
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit c2743ad474529951ace2b8ec712bf373f3a07d4c
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Mon Aug 22 11:59:46 2022 +0900
+
+    Makefile: Fix unnecessary re-patching with coreutils-9.0
+    
+    "sum" command in coreutils-9.0 (e.g. Fedora 36) started to output a file
+    name.  As a result, "make" always detects a change of gdb-10.2.patch
+    wrongly and re-applies it unnecessarily.
+    
+    Use standard input to fix it and "md5sum" to improve detection.
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 763e221388219b07bd949a9ba48768856908ec6d
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Thu Jul 28 15:11:20 2022 +0800
+
+    x86_64: Fix for AMD SME issue
+    
+    Kernel commit changes(see [1]/[2]) may cause the failure of crash-utility
+    with the following error:
+    
+      #./crash /home/vmlinux /home/vmcore
+      ...
+      For help, type "help".
+      Type "apropos word" to search for commands related to "word"...
+    
+      crash: seek error: physical address: 8000760a14000  type: "p4d page"
+    
+    Let's get the "NUMBER(sme_mask)" from vmcoreinfo, and try to remove
+    the C-bit from the page table entries, the intention is to get the
+    true physical address.
+    
+    Related kernel commits:
+    [1] aad983913d77 ("x86/mm/encrypt: Simplify sme_populate_pgd() and sme_populate_pgd_large()")
+    [2] e7d445ab26db ("x86/sme: Use #define USE_EARLY_PGTABLE_L5 in mem_encrypt_identity.c")
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit f37df7df8a50519d80f04fb48499287892021575
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jul 22 13:44:50 2022 +0900
+
+    Fix gcc-11 compiler warning on kvmdump.c
+    
+    Without the patch, the following gcc-11 compiler warning is emitted for
+    kvmdump.c:
+    
+    In function 'write_mapfile_registers',
+        inlined from 'write_mapfile_trailer' at kvmdump.c:947:3,
+        inlined from 'kvmdump_init' at kvmdump.c:145:4:
+    kvmdump.c:972:13: warning: 'write' reading 8 bytes from a region of size 4 [-Wstringop-overread]
+      972 |         if (write(kvm->mapfd, &kvm->cpu_devices, sizeof(uint64_t)) != sizeof(uint64_t))
+          |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    In file included from kvmdump.c:19:
+    kvmdump.c: In function 'kvmdump_init':
+    kvmdump.h:67:18: note: source object 'cpu_devices' of size 4
+       67 |         uint32_t cpu_devices;
+          |                  ^~~~~~~~~~~
+    In file included from defs.h:26,
+                     from kvmdump.c:18:
+    /usr/include/unistd.h:378:16: note: in a call to function 'write' declared with attribute 'access (read_only, 2, 3)'
+      378 | extern ssize_t write (int __fd, const void *__buf, size_t __n) __wur
+          |                ^~~~~
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 7591e3c07cef4900f6b0ca797270cb7527fb4e29
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jul 22 13:44:50 2022 +0900
+
+    Fix gcc-11 compiler warning on makedumpfile.c
+    
+    Without the patch, the following gcc-11 compiler warning is emitted for
+    makedumpfile.c:
+    
+    In function 'flattened_format_get_osrelease',
+        inlined from 'check_flattened_format' at makedumpfile.c:236:3:
+    makedumpfile.c:392:9: warning: 'fclose' called on pointer returned from a mismatched allocation function [-Wmismatched-dealloc]
+      392 |         fclose(pipe);
+          |         ^~~~~~~~~~~~
+    makedumpfile.c: In function 'check_flattened_format':
+    makedumpfile.c:380:21: note: returned from 'popen'
+      380 |         if ((pipe = popen(buf, "r")) == NULL)
+          |                     ^~~~~~~~~~~~~~~
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit b9c0ed124e422b7e0b1526afa3a691ad0579607b
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jul 22 13:44:50 2022 +0900
+
+    Fix gcc-11 compiler warning on symbols.c
+    
+    Without the patch, the following gcc-11 compiler warning is emitted for
+    symbols.c:
+    
+    symbols.c: In function 'cmd_p':
+    symbols.c:7412:38: warning: writing 1 byte into a region of size 0 [-Wstringop-overflow=]
+     7412 |                         *(cpuspec-1) = ':';
+          |                         ~~~~~~~~~~~~~^~~~~
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit f374aca364b7e8809f122678aefed1010e3c94bd
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jul 22 13:44:50 2022 +0900
+
+    Fix gcc-11 compiler warnings on filesys.c
+    
+    Without the patch, the following gcc-11 compiler warnings are emitted
+    for filesys.c:
+    
+    filesys.c: In function 'mount_point':
+    filesys.c:718:17: warning: 'pclose' called on pointer returned from a mismatched allocation function [-Wmismatched-dealloc]
+      718 |                 pclose(mp);
+          |                 ^~~~~~~~~~
+    filesys.c:709:27: note: returned from 'fopen'
+      709 |                 if ((mp = fopen(mntfile, "r")) == NULL)
+          |                           ^~~~~~~~~~~~~~~~~~~
+    filesys.c:738:17: warning: 'pclose' called on pointer returned from a mismatched allocation function [-Wmismatched-dealloc]
+      738 |                 pclose(mp);
+          |                 ^~~~~~~~~~
+    filesys.c:723:27: note: returned from 'fopen'
+      723 |                 if ((mp = fopen(mntfile, "r")) == NULL)
+          |                           ^~~~~~~~~~~~~~~~~~~
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 6722ea102264b54529afc19d347a3a7473670fdd
+Author: Qianli Zhao <qianli.zhao@horizon.ai>
+Date:   Mon Jul 4 16:40:01 2022 +0800
+
+    arm64: Fix for st->_stext_vmlinux not initialized when set VA_BITS_ACTUAL
+    
+    Setting st->_stext_vmlinux to UNINITIALIZED to search for "_stext"
+    from the vmlinux.  In the scenario where kaslr is disabled and
+    without vmcoreinfo, crash will get the wrong MODULES/VMALLOC ranges
+    and cause a failure in parsing a raw RAM dumpfile.
+    
+    Signed-off-by: Qianli Zhao <qianli.zhao@horizon.ai>
+
+commit 93b880217de239268315be942c10dfce5649db8b
+Author: Hari Bathini <hbathini@linux.ibm.com>
+Date:   Mon Jul 4 10:55:46 2022 +0530
+
+    ppc64: use a variable for machdep->machspec
+    
+    machdpep->machspec is referred to multiple times. The compiler would
+    likely optimize this but nonetheless, use a variable to optimize in
+    coding and also improve readability. No functional change.
+    
+    Signed-off-by: Hari Bathini <hbathini@linux.ibm.com>
+
+commit 4dc2f1c32d1c99586e67032c9cd62c5c4334049c
+Author: Hari Bathini <hbathini@linux.ibm.com>
+Date:   Mon Jul 4 10:55:45 2022 +0530
+
+    ppc64: print emergency stacks info with 'mach' command
+    
+    Print top address of emergency stacks with 'mach' command.
+    
+    Signed-off-by: Hari Bathini <hbathini@linux.ibm.com>
+
+commit cdd57e8b16aba2f5714673368d6dbc7565d59841
+Author: Hari Bathini <hbathini@linux.ibm.com>
+Date:   Mon Jul 4 10:55:44 2022 +0530
+
+    ppc64: handle backtrace when CPU is in an emergency stack
+    
+    A CPU could be in an emergency stack when it is running in real mode
+    or any special scenario like TM bad thing. Also, there are dedicated
+    emergency stacks for machine check and system reset interrupt. Right
+    now, no backtrace is provided if a CPU is in any of these stacks.
+    This change ensures backtrace is processed appropriately even when
+    a CPU is in any one of these emergency stacks. Also, if stack info
+    cannot be found, print that message always instead of only when
+    verbose logs are enabled.
+    
+    Related kernel commits:
+    729b0f715371 ("powerpc/book3s: Introduce exclusive emergency stack for machine check exception.")
+    b1ee8a3de579 ("powerpc/64s: Dedicated system reset interrupt stack")
+    
+    Signed-off-by: Hari Bathini <hbathini@linux.ibm.com>
+
+commit 4d1b968abb286ea39ea080ae073b0e2b5bfe6c4e
+Author: Hari Bathini <hbathini@linux.ibm.com>
+Date:   Mon Jul 4 10:55:43 2022 +0530
+
+    ppc64: rename ppc64_paca_init to ppc64_paca_percpu_offset_init
+    
+    ppc64_paca_init() function is specifically used to initialize percpu
+    data_offset for kernels older than v2.6.36. So, the name is slightly
+    misleading. Rename it to ppc64_paca_percpu_offset_init to reflect its
+    purpose.
+    
+    Signed-off-by: Hari Bathini <hbathini@linux.ibm.com>
+
+commit 3ee5956721d9a67fe8d4c6d5022aa022c5f9a11c
+Author: Hari Bathini <hbathini@linux.ibm.com>
+Date:   Mon Jul 4 10:55:42 2022 +0530
+
+    ppc64: dynamically allocate h/w interrupt stack
+    
+    Only older kernel (v2.4) used h/w interrupt stack to store frames when
+    CPU received IPI. Memory used for this in 'struct machine_specific' is
+    useless for later kernels. For the sake of backward compatibility keep
+    h/w interrupt stack but dynamically allocate memory for it and save
+    some bytes from being wasted.
+    
+    Signed-off-by: Hari Bathini <hbathini@linux.ibm.com>
+
+commit c67ce5bbb8e37d28f1c26b239b203a6561f574c1
+Author: Hari Bathini <hbathini@linux.ibm.com>
+Date:   Mon Jul 4 10:55:41 2022 +0530
+
+    ppc64: fix bt for '-S' case
+    
+    Passing '-S' option to 'bt' command was intended to specify the stack
+    pointer manually. But get_stack_frame() handling on ppc64 is ignoring
+    this option altogether. Fix it.
+    
+    Signed-off-by: Hari Bathini <hbathini@linux.ibm.com>
+
+commit d8869b08548362345fc34e4cf17a1eac9bddec6b
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Wed Jun 22 08:32:59 2022 +0900
+
+    Extend field length of task attributes
+    
+    Nowadays, some machines have many CPU cores and memory, and some
+    distributions have a larger kernel.pid_max parameter, e.g. 7 digits.
+    This impairs the readability of a few commands, especially "ps" and
+    "ps -l|-m" options.
+    
+    Let's extend the field length of the task attributes, PID, CPU, VSZ,
+    and RSS to improve the readability.
+    
+    Without the patch:
+      crash> ps
+         PID    PPID  CPU       TASK        ST  %MEM     VSZ    RSS  COMM
+      ...
+        2802197  2699997   2  ffff916f63c40000  IN   0.0  307212  10688  timer
+        2802277      1   0  ffff9161a25bb080  IN   0.0  169040   2744  gpg-agent
+        2806711  3167854  10  ffff9167fc498000  IN   0.0  127208   6508  su
+        2806719  2806711   1  ffff91633c3a48c0  IN   0.0   29452   6416  bash
+        2988346      1   5  ffff916f7c629840  IN   2.8 9342476 1917384  qemu-kvm
+    
+    With the patch:
+      crash> ps
+            PID    PPID  CPU       TASK        ST  %MEM      VSZ      RSS  COMM
+      ...
+        2802197 2699997   2  ffff916f63c40000  IN   0.0   307212    10688  timer
+        2802277       1   0  ffff9161a25bb080  IN   0.0   169040     2744  gpg-agent
+        2806711 3167854  10  ffff9167fc498000  IN   0.0   127208     6508  su
+        2806719 2806711   1  ffff91633c3a48c0  IN   0.0    29452     6416  bash
+        2988346       1   5  ffff916f7c629840  IN   2.8  9342476  1917384  qemu-kvm
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 85f39061390f095e73d9037f015cec077441eb13
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Wed Jun 15 10:50:13 2022 +0900
+
+    Fix for "dev" command on Linux 5.11 and later
+    
+    The following kernel commits eventually removed the bdev_map array in
+    Linux v5.11 kernel:
+    
+      e418de3abcda ("block: switch gendisk lookup to a simple xarray")
+      22ae8ce8b892 ("block: simplify bdev/disk lookup in blkdev_get")
+    
+    Without the patch, the "dev" command fails to dump block device data
+    with the following error:
+    
+      crash> dev
+      ...
+      dev: blkdevs or all_bdevs: symbols do not exist
+    
+    To get block device's gendisk, search blockdev_superblock.s_inodes
+    instead of bdev_map.
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit b8f2ae6b494d706b1e4855b439c4930a6a6a2f5c
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jun 10 16:00:14 2022 +0900
+
+    sbitmapq: Limit kernels without sbitmap again
+    
+    commit 364b2e413c69 ("sbitmapq: remove struct and member validation
+    in sbitmapq_init()") allowed the use of the "sbitmapq" command
+    unconditionally.  Without the patch, the command fails with the
+    following error on kernels without sbitmap:
+    
+      crash> sbitmapq ffff88015796e550
+    
+      sbitmapq: invalid structure member offset: sbitmap_queue_sb
+                FILE: sbitmap.c  LINE: 385  FUNCTION: sbitmap_queue_context_load()
+    
+    Now the command supports Linux 4.9 and later kernels since it was
+    abstracted out, so it can be limited by the non-existence of the
+    sbitmap structure.
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 6bc3b74c6e2b0aaebe1bc164594e53b010efef56
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jun 10 15:52:34 2022 +0900
+
+    sbitmapq: Fix for kernels without struct wait_queue_head
+    
+    The current struct wait_queue_head was renamed by kernel commit
+    9d9d676f595b ("sched/wait: Standardize internal naming of wait-queue heads")
+    at Linux 4.13.  Without the patch, on earlier kernels the "sbitmapq"
+    command fails with the following error:
+    
+      crash> sbitmapq ffff8801790b3b50
+      depth = 128
+      busy = 0
+      bits_per_word = 32
+      ...
+      sbitmapq: invalid structure member offset: wait_queue_head_head
+                FILE: sbitmap.c  LINE: 344  FUNCTION: sbitmap_queue_show()
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit c07068266b41450ca6821ee0a1a3adf34206015f
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jun 10 15:21:53 2022 +0900
+
+    Make "dev -d|-D" options parse sbitmap on Linux 4.18 and later
+    
+    There have been a few reports that the "dev -d|-D" options displayed
+    incorrect I/O stats due to racy blk_mq_ctx.rq_* counters.  To fix it,
+    make the options parse sbitmap to count I/O stats on Linux 4.18 and
+    later kernels, which include RHEL8 ones.
+    
+    To do this, adjust to the blk_mq_tags structure of Linux 5.10 through
+    5.15 kernels, which contain kernel commit 222a5ae03cdd ("blk-mq: Use
+    pointers for blk_mq_tags bitmap tags") and do not contain ae0f1a732f4a
+    ("blk-mq: Stop using pointers for blk_mq_tags bitmap tags").
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 12fe6c7cdd768f87ce6e903a2bbfb0c0591585c5
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jun 10 11:49:47 2022 +0900
+
+    sbitmapq: Fix for sbitmap_queue without min_shallow_depth member
+    
+    The sbitmap_queue.min_shallow_depth member was added by kernel commit
+    a327553965de ("sbitmap: fix missed wakeups caused by sbitmap_queue_get_shallow()")
+    at Linux 4.18.  Without the patch, on earlier kernels the "sbitmapq"
+    command fails with the following error:
+    
+      crash> sbitmapq ffff89bb7638ee50
+    
+      sbitmapq: invalid structure member offset: sbitmap_queue_min_shallow_depth
+                FILE: sbitmap.c  LINE: 398  FUNCTION: sbitmap_queue_context_load()
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 0d3e86fee5eead93b521a0e20a0e099ede4ab72b
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jun 10 11:49:47 2022 +0900
+
+    sbitmapq: Fix for sbitmap_word without cleared member
+    
+    The sbitmap_word.cleared member was added by kernel commit ea86ea2cdced
+    ("sbitmap: ammortize cost of clearing bits") at Linux 5.0.  Without the
+    patch, on earlier kernels the "sbitmapq" command fails with the
+    following error:
+    
+      crash> sbitmapq ffff8f1a3611cf10
+    
+      sbitmapq: invalid structure member offset: sbitmap_word_cleared
+                FILE: sbitmap.c  LINE: 92  FUNCTION: __sbitmap_weight()
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 9ce31a14d1083cbb2beb4a8e6eb7b88234b79a99
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Fri Jun 10 11:49:47 2022 +0900
+
+    sbitmapq: Fix for sbitmap_queue without ws_active member
+    
+    The sbitmap_queue.ws_active member was added by kernel commit 5d2ee7122c73
+    ("sbitmap: optimize wakeup check") at Linux 5.0.  Without the patch, on
+    earlier kernels the "sbitmapq" command fails with the following error:
+    
+      crash> sbitmapq ffff8f1a3611cf10
+    
+      sbitmapq: invalid structure member offset: sbitmap_queue_ws_active
+                FILE: sbitmap.c  LINE: 393  FUNCTION: sbitmap_queue_context_load()
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit c672d7a4c290712b32c54329cbdc1e74d122e813
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Mon Jun 6 19:09:16 2022 +0800
+
+    Doc: update man page for the "bpf" and "sbitmapq" commands
+    
+    The information of the "bpf" and "sbitmapq" commands is missing in the man
+    page of the crash utility.  Let's add it to the man page.
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit 68ce0b9a35d77d767872dd1a729c50e4695a30a8
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Thu Jun 2 20:12:56 2022 +0800
+
+    Fix for "dev -d|-D" options to support blk-mq change on Linux v5.18-rc1
+    
+    Kernel commit 4e5cc99e1e48 ("blk-mq: manage hctx map via xarray") removed
+    the "queue_hw_ctx" member from struct request_queue at Linux v5.18-rc1,
+    and replaced it with a struct xarray "hctx_table". Without the patch, the
+    "dev -d|-D" options will print an error:
+    
+      crash> dev -d
+      MAJOR GENDISK            NAME       REQUEST_QUEUE      TOTAL  READ WRITE
+    
+      dev: invalid structure member offset: request_queue_queue_hw_ctx
+    
+    With the patch:
+      crash> dev -d
+      MAJOR GENDISK            NAME       REQUEST_QUEUE      TOTAL  READ WRITE
+          8 ffff8e99d0a1ae00   sda        ffff8e9c14c59980      10     6     4
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit 7095c8fd029e3a33117e3b67de73f504686ebfe2
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Thu Jun 2 20:12:55 2022 +0800
+
+    Enhance "dev -d|-D" options to support blk-mq sbitmap
+    
+    Since Linux 5.16-rc1, which kernel commit 9a14d6ce4135 ("block: remove
+    debugfs blk_mq_ctx dispatched/merged/completed attributes") removed the
+    members from struct blk_mq_ctx, crash has not displayed disk I/O statistics
+    for multiqueue (blk-mq) devices.
+    
+    Let's parse the sbitmap in blk-mq layer to support it.
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit dda5b2d02b8d8de1264f84b6267582aa7a1e5a57
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Tue May 31 17:12:16 2022 +0900
+
+    gdb: print details of unnamed struct and union
+    
+    Currently gdb's "ptype" command does not print the details of unnamed
+    structure and union deeper than second level in a structure, it prints
+    only "{...}" instead.  And crash's "struct" and similar commands also
+    inherit this behavior, so we cannot get the full information of them.
+    
+    To print the details of them, change the show variable when it is an
+    unnamed one like crash-7.x.
+    
+    Without the patch:
+       crash> struct -o page
+       struct page {
+          [0] unsigned long flags;
+              union {
+                  struct {...};
+                  struct {...};
+       ...
+    
+    With the patch:
+       crash> struct -o page
+       struct page {
+          [0] unsigned long flags;
+              union {
+                  struct {
+          [8]         struct list_head lru;
+         [24]         struct address_space *mapping;
+         [32]         unsigned long index;
+         [40]         unsigned long private;
+                  };
+                  struct {
+          [8]         dma_addr_t dma_addr;
+                  };
+       ...
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 0f162febebc4d11a165dd40cee00f3b0ba691a52
+Author: Qi Zheng <zhengqi.arch@bytedance.com>
+Date:   Tue May 24 20:25:54 2022 +0800
+
+    bt: arm64: add support for 'bt -n idle'
+    
+    The '-n idle' option of bt command can help us filter the
+    stack of the idle process when debugging the dumpfiles
+    captured by kdump.
+    
+    This patch supports this feature on ARM64.
+    
+    Signed-off-by: Qi Zheng <zhengqi.arch@bytedance.com>
+
+commit 6833262bf87177d8affe4f91b2e7d2c76ecdf636
+Author: Qi Zheng <zhengqi.arch@bytedance.com>
+Date:   Tue May 24 20:25:53 2022 +0800
+
+    bt: x86_64: filter out idle task stack
+    
+    When we use crash to troubleshoot softlockup and other problems,
+    we often use the 'bt -a' command to print the stacks of running
+    processes on all CPUs. But now some servers have hundreds of CPUs
+    (such as AMD machines), which causes the 'bt -a' command to output
+    a lot of process stacks. And many of these stacks are the stacks
+    of the idle process, which are not needed by us.
+    
+    Therefore, in order to reduce this part of the interference information,
+    this patch adds the -n option to the bt command. When we specify
+    '-n idle' (meaning no idle), the stack of the idle process will be
+    filtered out, thus speeding up our troubleshooting.
+    
+    And the option works only for crash dumps captured by kdump.
+    
+    The command output is as follows:
+    crash> bt -a -n idle
+    [...]
+    PID: 0      TASK: ffff889ff8c34380  CPU: 8   COMMAND: "swapper/8"
+    
+    PID: 0      TASK: ffff889ff8c32d00  CPU: 9   COMMAND: "swapper/9"
+    
+    PID: 0      TASK: ffff889ff8c31680  CPU: 10  COMMAND: "swapper/10"
+    
+    PID: 0      TASK: ffff889ff8c35a00  CPU: 11  COMMAND: "swapper/11"
+    
+    PID: 0      TASK: ffff889ff8c3c380  CPU: 12  COMMAND: "swapper/12"
+    
+    PID: 150773  TASK: ffff889fe85a1680  CPU: 13  COMMAND: "bash"
+     #0 [ffffc9000d35bcd0] machine_kexec at ffffffff8105a407
+     #1 [ffffc9000d35bd28] __crash_kexec at ffffffff8113033d
+     #2 [ffffc9000d35bdf0] panic at ffffffff81081930
+     #3 [ffffc9000d35be70] sysrq_handle_crash at ffffffff814e38d1
+     #4 [ffffc9000d35be78] __handle_sysrq.cold.12 at ffffffff814e4175
+     #5 [ffffc9000d35bea8] write_sysrq_trigger at ffffffff814e404b
+     #6 [ffffc9000d35beb8] proc_reg_write at ffffffff81330d86
+     #7 [ffffc9000d35bed0] vfs_write at ffffffff812a72d5
+     #8 [ffffc9000d35bf00] ksys_write at ffffffff812a7579
+     #9 [ffffc9000d35bf38] do_syscall_64 at ffffffff81004259
+        RIP: 00007fa7abcdc274  RSP: 00007fffa731f678  RFLAGS: 00000246
+        RAX: ffffffffffffffda  RBX: 0000000000000002  RCX: 00007fa7abcdc274
+        RDX: 0000000000000002  RSI: 0000563ca51ee6d0  RDI: 0000000000000001
+        RBP: 0000563ca51ee6d0   R8: 000000000000000a   R9: 00007fa7abd6be80
+        R10: 000000000000000a  R11: 0000000000000246  R12: 00007fa7abdad760
+        R13: 0000000000000002  R14: 00007fa7abda8760  R15: 0000000000000002
+        ORIG_RAX: 0000000000000001  CS: 0033  SS: 002b
+    [...]
+    
+    Signed-off-by: Qi Zheng <zhengqi.arch@bytedance.com>
+    Acked-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+    Acked-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit 9705669a49c341402efd8528e8fe809379dd798d
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Mon May 23 14:48:50 2022 +0900
+
+    Makefile: add missing crash_target.o to be cleaned
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
+
+commit 3750803f6ae5f5ad071f86ca916dbbb17b7a83a5
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Mon May 23 18:04:16 2022 +0800
+
+    sbitmapq: fix invalid offset for "sbitmap_word_depth" on Linux v5.18-rc1
+    
+    Kernel commit 3301bc53358a ("lib/sbitmap: kill 'depth' from sbitmap_word")
+    removed the depth member from struct sbitmap_word.  Without the patch, the
+    sbitmapq will fail:
+    
+      crash> sbitmapq 0xffff8e99d0dc8010
+    
+      sbitmapq: invalid structure member offset: sbitmap_word_depth
+              FILE: sbitmap.c  LINE: 84  FUNCTION: __sbitmap_weight()
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit 530fe6ad7e4d7ff6254596c1219d25ed929e3867
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Mon May 23 18:04:15 2022 +0800
+
+    sbitmapq: fix invalid offset for "sbitmap_queue_round_robin" on Linux v5.13-rc1
+    
+    Kernel commit efe1f3a1d583 ("scsi: sbitmap: Maintain allocation
+    round_robin in sbitmap") moved the round_robin member from struct
+    sbitmap_queue to struct sbitmap.  Without the patch, the sbitmapq
+    will fail:
+    
+      crash> sbitmapq 0xffff8e99d0dc8010
+    
+      sbitmapq: invalid structure member offset: sbitmap_queue_round_robin
+              FILE: sbitmap.c  LINE: 378  FUNCTION: sbitmap_queue_context_load()
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit a295cb40cd5d24fb5995cc78d29c5def3843d285
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Mon May 23 18:04:14 2022 +0800
+
+    sbitmapq: fix invalid offset for "sbitmap_queue_alloc_hint" on Linux v5.13-rc1
+    
+    Kernel commit c548e62bcf6a ("scsi: sbitmap: Move allocation hint
+    into sbitmap") moved the alloc_hint member from struct sbitmap_queue
+    to struct sbitmap.  Without the patch, the sbitmapq will fail:
+    
+      crash> sbitmapq 0xffff8e99d0dc8010
+    
+      sbitmapq: invalid structure member offset: sbitmap_queue_alloc_hint
+              FILE: sbitmap.c  LINE: 365  FUNCTION: sbitmap_queue_context_load()
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit 364b2e413c69daf189d2bc0238e3ba9b0dcbd937
+Author: Lianbo Jiang <lijiang@redhat.com>
+Date:   Mon May 23 18:04:13 2022 +0800
+
+    sbitmapq: remove struct and member validation in sbitmapq_init()
+    
+    Let's remove the struct and member validation from sbitmapq_init(), which
+    will help the crash to display the actual error when the sbitmapq fails.
+    
+    Without the patch:
+      crash> sbitmapq ffff8e99d0dc8010
+      sbitmapq: command not supported or applicable on this architecture or kernel
+    
+    With the patch:
+      crash> sbitmapq ffff8e99d0dc8010
+    
+      sbitmapq: invalid structure member offset: sbitmap_queue_alloc_hint
+              FILE: sbitmap.c  LINE: 365  FUNCTION: sbitmap_queue_context_load()
+    
+    Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+
+commit ae52398a13fa9a238279114ed671c7c514c154ee
+Author: Sourabh Jain <sourabhjain@linux.ibm.com>
+Date:   Mon May 9 12:49:56 2022 +0530
+
+    ppc64: update the NR_CPUS to 8192
+    
+    Since the kernel commit 2d8ae638bb86 ("powerpc: Make the NR_CPUS max 8192")
+    the NR_CPUS on Linux kernel ranges from 1-8192. So let's match NR_CPUS with
+    the max NR_CPUS count on the Linux kernel.
+    
+    Signed-off-by: Sourabh Jain <sourabhjain@linux.ibm.com>
+
+commit 0ca55e460757172879ebc06c1a18c97163711dab
+Author: Kazuhito Hagio <k-hagio-ab@nec.com>
+Date:   Tue May 10 10:27:44 2022 +0900
+
+    Mark start of 8.0.2 development phase with version 8.0.1++
+    
+    Signed-off-by: Kazuhito Hagio <k-hagio-ab@nec.com>
